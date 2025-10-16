@@ -8,9 +8,15 @@
 body {
     font-family: Arial, sans-serif;
     line-height: 1.6;
-    padding: 20px;
-    max-width: 1200px;
+    padding: 0px;
     margin: 0 auto;
+}
+
+#map {
+    height: 100vh;
+    width: 100%;
+    margin-top: 0px;
+    margin-bottom: 0px;
 }
 
 header {
