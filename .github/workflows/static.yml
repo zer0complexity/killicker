@@ -36,11 +36,12 @@ jobs:
       - name: Set Google Maps API Key
         run: sed -i "s/GOOGLE_MAPS_API_KEY/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" index.html
       - name: Minify HTML, CSS, and JS
-        run: |
-          sudo apt-get install -y html-minifier-terser
-          find . -name "*.html" -exec html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o {} {} \;
-          find . -name "*.css" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
-          find . -name "*.js" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
+        uses: anthonyftwang/minify-action@v1.0.1
+        # run: |
+        #   sudo apt-get install -y html-minifier-terser
+        #   find . -name "*.html" -exec html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o {} {} \;
+        #   find . -name "*.css" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
+        #   find . -name "*.js" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
