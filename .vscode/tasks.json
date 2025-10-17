@@ -4,12 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "API Key",
-            "type": "shell",
-            "command": "GOOGLE_MAPS_API_KEY=$(cat .GOOGLE_MAPS_API_KEY)"
-        },
-        {
-            "label": "Build",
+            "label": "Build loader.js",
             "type": "shell",
             "command":
                 "sed \"s/GOOGLE_MAPS_API_KEY/$(cat .GOOGLE_MAPS_API_KEY)/g\" js/_loader.js > js/loader.js",
@@ -18,8 +13,7 @@
         {
             "label": "Build and launch Live Server",
             "dependsOn": [
-                "API Key",
-                "Build"
+                "Build loader.js"
             ],
             "problemMatcher": [],
             "group": {
