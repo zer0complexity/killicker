@@ -36,7 +36,10 @@ jobs:
       - name: Set Google Maps API Key
         run: sed -i "s/GOOGLE_MAPS_API_KEY/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" index.html
       - name: Minify HTML, CSS, and JS
-        uses: anthonyftwang/minify-action@v1.0.1
+        uses: dra1ex/minify-action@v1.0.3
+        # This one failed due to errors while installing packages
+        # uses: anthonyftwang/minify-action@v1.0.1
+        # This one didn't work and took too long anyway (over 2 minutes)
         # run: |
         #   sudo apt-get install -y html-minifier-terser
         #   find . -name "*.html" -exec html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o {} {} \;
