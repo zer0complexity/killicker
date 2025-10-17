@@ -1,4 +1,4 @@
-const pointCount = 0;
+let pointCount = 0;
 
 async function initMap() {
     // Request libraries when needed, not in the script tag.
@@ -43,6 +43,9 @@ function getNewData() {
             console.log("Latest file:", latestFile);
             fetchAndProcessJsonFile(`data/${latestFile}`, (jsonData) => {
                 if (jsonData.points && jsonData.points.length > pointCount) {
+                    jsonData.points.slice(pointCount, jsonData.points.length).forEach(element => {
+                        console.log("New point:", element);
+                    });
                     pointCount = jsonData.points.length;
                     console.log(`New points added. Total points: ${pointCount}`);
                 } else {
@@ -57,5 +60,4 @@ function getNewData() {
 
 
 initMap();
-// const intervalId = setInterval(getNewData, 5000);
-getNewData();
+const intervalId = setInterval(getNewData, 5000);
