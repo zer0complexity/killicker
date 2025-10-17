@@ -34,17 +34,9 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Set Google Maps API Key
-        run: sed -i "s/GOOGLE_MAPS_API_KEY/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" index.html
+        run: sed -i "s/GOOGLE_MAPS_API_KEY/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" js/main.js
       - name: Minify HTML, CSS, and JS
         uses: dra1ex/minify-action@v1.0.3
-        # This one failed due to errors while installing packages
-        # uses: anthonyftwang/minify-action@v1.0.1
-        # This one didn't work and took too long anyway (over 2 minutes)
-        # run: |
-        #   sudo apt-get install -y html-minifier-terser
-        #   find . -name "*.html" -exec html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o {} {} \;
-        #   find . -name "*.css" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
-        #   find . -name "*.js" -exec sh -c 'html-minifier-terser --collapse-whitespace --remove-comments -o "$1" "$1"' _ {} \;
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
