@@ -8,10 +8,12 @@ const circleSvg = `
     </svg>
 `;
 let prevPointData = null;
+let infoWindow = null;
+
 
 async function initMap() {
     // Request libraries when needed, not in the script tag.
-    const { Map } = await google.maps.importLibrary("maps");
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
 
     const position = { lat: 44.74979194815116, lng: -79.8512010048997 };    // Wye Heritage Marina
@@ -19,7 +21,7 @@ async function initMap() {
     // The map, centered at position
     return new google.maps.Map(document.getElementById("map"), {
         zoom: 8,
-        // center: position,
+        center: position,
         mapId: "cf429fad5670f355c2f94461",
         disableDefaultUI: true,
     });
@@ -65,10 +67,26 @@ function placeMarker(prevPointData, pointData, map) {
         const marker = new google.maps.marker.AdvancedMarkerElement({
             map,
             position: prevPointData.position,
-            title: 'Uluru\nAnd another line.',
+            title: prevPointData.timestamp || '',
             content: pointElement,
             anchorLeft: '-50%',
             anchorTop: '-50%',
+            gmpClickable: true,
+        });
+        marker.addListener("click", ({ domEvent, latLng }) => {
+            const {target} = domEvent;
+            infoWindow.close();
+            const ts = prevPointData.timestamp ? new Date(prevPointData.timestamp).toUTCString() : 'No timestamp';
+            infoWindow.setContent(`
+                <html>
+                    <strong>${ts}</strong><br>
+                    <strong>SOG:</strong> ${prevPointData.SOG || 'N/A'} kn<br>
+                    <strong>COG:</strong> ${prevPointData.COG || 'N/A'}° T<br>
+                    <strong>AWS:</strong> ${prevPointData.AWS || 'N/A'} kn<br>
+                    <strong>AWA:</strong> ${prevPointData.AWA || 'N/A'}° T
+                </html>
+            `);
+            infoWindow.open(marker.map, marker);
         });
     }
 
@@ -101,6 +119,7 @@ initMap().then((map) => {
         ]
     });
     track.setMap(map);
+    infoWindow = new google.maps.InfoWindow();
 
     getNewData(map);  // Initial data fetch
     const intervalId = setInterval(getNewData, 5000, map);
