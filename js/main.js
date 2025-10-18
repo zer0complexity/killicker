@@ -6,7 +6,6 @@ const circleSvg = `
         <path stroke="#000000" stroke-width="4" fill="#FF9000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
     </svg>
 `;
-let prevPointData = null;
 let infoWindow = null;
 
 
@@ -41,7 +40,7 @@ async function fetchAndProcessJsonFile(url, callback) {
     }
 }
 
-function getNewData(map) {
+function getNewData(map, prevPointData) {
     fetchAndProcessJsonFile('data/files.json', (data) => {
         if (data.files && data.files.length > 0) {
             const latestFile = data.files.at(-1);
@@ -81,20 +80,22 @@ function placeMarker(pointData, map) {
         anchorTop: '-50%',
         gmpClickable: true,
     });
-    marker.addListener("click", ({ domEvent, latLng }) => {
-        const {target} = domEvent;
-        infoWindow.close();
-        const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
-        infoWindow.setContent(`
-            <html>
-                <strong>${ts}</strong><br>
-                <strong>SOG:</strong> ${pointData.SOG || 'N/A'} kn<br>
-                <strong>COG:</strong> ${pointData.COG || 'N/A'}° T<br>
-                <strong>AWS:</strong> ${pointData.AWS || 'N/A'} kn<br>
-                <strong>AWA:</strong> ${pointData.AWA || 'N/A'}° T
-            </html>
-        `);
-        infoWindow.open(marker.map, marker);
+    marker.addListener("click", () => {
+        if (infoWindow.anchor === marker) {
+            infoWindow.close();
+        } else {
+            const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
+            infoWindow.setContent(`
+                <html>
+                    <strong>${ts}</strong><br>
+                    <strong>SOG:</strong> ${pointData.SOG || 'N/A'} kn<br>
+                    <strong>COG:</strong> ${pointData.COG || 'N/A'}° T<br>
+                    <strong>AWS:</strong> ${pointData.AWS || 'N/A'} kn<br>
+                    <strong>AWA:</strong> ${pointData.AWA || 'N/A'}° T
+                </html>
+            `);
+            infoWindow.open(marker.map, marker);
+        }
     });
 }
 
@@ -124,6 +125,7 @@ initMap().then((map) => {
     track.setMap(map);
     infoWindow = new google.maps.InfoWindow();
 
-    getNewData(map);  // Initial data fetch
-    const intervalId = setInterval(getNewData, 5000, map);
+    const prevPointData = null;
+    getNewData(map, prevPointData);  // Initial data fetch
+    const intervalId = setInterval(getNewData, 5000, map, prevPointData);  // Fetch new data every 5 seconds
 });
