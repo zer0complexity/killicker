@@ -6,7 +6,14 @@ const circleSvg = `
         <path stroke="#000000" stroke-width="4" fill="#FF9000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
     </svg>
 `;
+const circleSvgTransparent = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 200 200">
+        <path stroke="#00000000" stroke-width="4" fill="#FF900000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
+    </svg>
+`;
 let infoWindow = null;
+let markers = [];
+let prevPointData = null;
 
 
 async function initMap() {
@@ -40,7 +47,7 @@ async function fetchAndProcessJsonFile(url, callback) {
     }
 }
 
-function getNewData(map, prevPointData) {
+function getNewData(map) {
     fetchAndProcessJsonFile('data/files.json', (data) => {
         if (data.files && data.files.length > 0) {
             const latestFile = data.files.at(-1);
@@ -48,11 +55,16 @@ function getNewData(map, prevPointData) {
                 const trackLength = track.getPath().length;
                 if (jsonData.points && jsonData.points.length > trackLength) {
                     jsonData.points.slice(trackLength, jsonData.points.length).forEach(element => {
-                        if (prevPointData) {
-                            placeMarker(prevPointData, map);
+                        if (markers.length > 0 && prevPointData) {
+                            markers.at(-1).setMap(null);  // Remove the last transparent marker
+                            markers.pop();
+                            markers.push(placeMarker(prevPointData, circleSvg, map));
                         }
                         addPointToTrack(element.position, map);
                         prevPointData = element;
+                        // Add a transparent marker at the current position to allow info window interaction
+                        transparentMarker = placeMarker(element, circleSvgTransparent, map);
+                        markers.push(transparentMarker);
                     });
                 }
             });
@@ -68,8 +80,8 @@ function addPointToTrack(position, map) {
 }
 
 
-function placeMarker(pointData, map) {
-    const pointElement = domParser.parseFromString(circleSvg, 'image/svg+xml').documentElement;
+function placeMarker(pointData, svg, map) {
+    const pointElement = domParser.parseFromString(svg, 'image/svg+xml').documentElement;
 
     const marker = new google.maps.marker.AdvancedMarkerElement({
         map,
@@ -97,6 +109,8 @@ function placeMarker(pointData, map) {
             infoWindow.open(marker.map, marker);
         }
     });
+
+    return marker;
 }
 
 
@@ -125,7 +139,6 @@ initMap().then((map) => {
     track.setMap(map);
     infoWindow = new google.maps.InfoWindow();
 
-    const prevPointData = null;
-    getNewData(map, prevPointData);  // Initial data fetch
-    const intervalId = setInterval(getNewData, 5000, map, prevPointData);  // Fetch new data every 5 seconds
+    getNewData(map);  // Initial data fetch
+    const intervalId = setInterval(getNewData, 5000, map);  // Fetch new data every 5 seconds
 });
