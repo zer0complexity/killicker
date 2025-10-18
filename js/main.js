@@ -60,7 +60,7 @@ function getNewData(map) {
                             markers.pop();
                             markers.push(placeMarker(prevPointData, circleSvg, map));
                         }
-                        addPointToTrack(element.position, map);
+                        addPointToTrack(element.position, map, markers.length === 0);
                         prevPointData = element;
                         // Add a transparent marker at the current position to allow info window interaction
                         transparentMarker = placeMarker(element, circleSvgTransparent, map);
@@ -73,10 +73,12 @@ function getNewData(map) {
 }
 
 
-function addPointToTrack(position, map) {
+function addPointToTrack(position, map, centerMap) {
     trackPoints.push(position);
     track.setPath(trackPoints);
-    map.setCenter(position);
+    if (centerMap) {
+        map.setCenter(position);
+    }
 }
 
 
