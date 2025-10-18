@@ -1,4 +1,3 @@
-let pointCount = 0;
 let trackPoints = [];
 let track = null;
 const domParser = new DOMParser();
@@ -47,12 +46,15 @@ function getNewData(map) {
         if (data.files && data.files.length > 0) {
             const latestFile = data.files.at(-1);
             fetchAndProcessJsonFile(`data/${latestFile}`, (jsonData) => {
-                if (jsonData.points && jsonData.points.length > pointCount) {
-                    jsonData.points.slice(pointCount, jsonData.points.length).forEach(element => {
-                        placeMarker(prevPointData, element, map);
+                const trackLength = track.getPath().length;
+                if (jsonData.points && jsonData.points.length > trackLength) {
+                    jsonData.points.slice(trackLength, jsonData.points.length).forEach(element => {
+                        if (prevPointData) {
+                            placeMarker(prevPointData, map);
+                        }
+                        addPointToTrack(element.position, map);
                         prevPointData = element;
                     });
-                    pointCount = jsonData.points.length;
                 }
             });
         }
@@ -60,39 +62,40 @@ function getNewData(map) {
 }
 
 
-function placeMarker(prevPointData, pointData, map) {
+function addPointToTrack(position, map) {
+    trackPoints.push(position);
+    track.setPath(trackPoints);
+    map.setCenter(position);
+}
+
+
+function placeMarker(pointData, map) {
     const pointElement = domParser.parseFromString(circleSvg, 'image/svg+xml').documentElement;
 
-    if (prevPointData) {
-        const marker = new google.maps.marker.AdvancedMarkerElement({
-            map,
-            position: prevPointData.position,
-            title: prevPointData.timestamp || '',
-            content: pointElement,
-            anchorLeft: '-50%',
-            anchorTop: '-50%',
-            gmpClickable: true,
-        });
-        marker.addListener("click", ({ domEvent, latLng }) => {
-            const {target} = domEvent;
-            infoWindow.close();
-            const ts = prevPointData.timestamp ? new Date(prevPointData.timestamp).toUTCString() : 'No timestamp';
-            infoWindow.setContent(`
-                <html>
-                    <strong>${ts}</strong><br>
-                    <strong>SOG:</strong> ${prevPointData.SOG || 'N/A'} kn<br>
-                    <strong>COG:</strong> ${prevPointData.COG || 'N/A'}° T<br>
-                    <strong>AWS:</strong> ${prevPointData.AWS || 'N/A'} kn<br>
-                    <strong>AWA:</strong> ${prevPointData.AWA || 'N/A'}° T
-                </html>
-            `);
-            infoWindow.open(marker.map, marker);
-        });
-    }
-
-    trackPoints.push(pointData.position);
-    track.setPath(trackPoints);
-    map.setCenter(pointData.position);
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: pointData.position,
+        title: pointData.timestamp || '',
+        content: pointElement,
+        anchorLeft: '-50%',
+        anchorTop: '-50%',
+        gmpClickable: true,
+    });
+    marker.addListener("click", ({ domEvent, latLng }) => {
+        const {target} = domEvent;
+        infoWindow.close();
+        const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
+        infoWindow.setContent(`
+            <html>
+                <strong>${ts}</strong><br>
+                <strong>SOG:</strong> ${pointData.SOG || 'N/A'} kn<br>
+                <strong>COG:</strong> ${pointData.COG || 'N/A'}° T<br>
+                <strong>AWS:</strong> ${pointData.AWS || 'N/A'} kn<br>
+                <strong>AWA:</strong> ${pointData.AWA || 'N/A'}° T
+            </html>
+        `);
+        infoWindow.open(marker.map, marker);
+    });
 }
 
 
