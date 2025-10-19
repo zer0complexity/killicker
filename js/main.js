@@ -99,14 +99,17 @@ function placeMarker(pointData, svg, map) {
             infoWindow.close();
         } else {
             const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
-            // TODO: Iterate over all available data fields instead of hardcoding, skipping position and timestamp
+            const metadataLines = [];
+            for (const key in pointData) {
+                if (key !== 'position' && key !== 'timestamp' && pointData[key] !== undefined) {
+                    const convertedValue = convertValue(key, pointData[key]);
+                    metadataLines.push(`<strong>${key}:</strong> ${convertedValue.value}${convertedValue.unit}`);
+                }
+            }
             infoWindow.setContent(`
                 <html>
                     <strong>${ts}</strong><br>
-                    <strong>SOG:</strong> ${pointData.SOG || 'N/A'} kn<br>
-                    <strong>COG:</strong> ${pointData.COG || 'N/A'}° T<br>
-                    <strong>AWS:</strong> ${pointData.AWS || 'N/A'} kn<br>
-                    <strong>AWA:</strong> ${pointData.AWA || 'N/A'}°
+                    ${metadataLines.join('<br>')}
                 </html>
             `);
             infoWindow.open(marker.map, marker);
@@ -114,6 +117,28 @@ function placeMarker(pointData, svg, map) {
     });
 
     return marker;
+}
+
+
+function convertValue(key, value) {
+    // Add conversions as needed
+    switch (key) {
+        case 'Depth':
+            // SignalK depth is in meters
+            return { value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--', unit: ' ft' };
+        case 'AWA':
+            // SignalK AWA is in radians
+            return { value: (value * (180 / Math.PI)).toFixed(0), unit: '°' };
+        case 'AWS':
+        case 'SOG':
+            // SignalK AWS is in m/s
+            return { value: (value * 1.94384).toFixed(1), unit: ' knots' };
+        case 'COG':
+            // SignalK COG is in radians
+            return { value: (value * (180 / Math.PI)).toFixed(0), unit: '° T' };
+        default:
+            return { value: value, unit: '' };
+    }
 }
 
 
