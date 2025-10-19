@@ -35,6 +35,8 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Set Google Maps API Key
         run: sed "s/GOOGLE_MAPS_API_KEY/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" js/_loader.js > js/loader.js && rm js/_loader.js
+      - name: Delete unneeded files
+        run: rm -rf .github README.md tools
       - name: Minify HTML, CSS, and JS
         uses: dra1ex/minify-action@v1.0.3
       - name: Upload artifact
