@@ -33,20 +33,20 @@ class DataGetter:
         '''
         query_api = client.query_api()
         measurements = [
-            "environment.depth.belowTransducer_value",
+            "navigation.speedOverGround_value",
+            "navigation.courseOverGroundTrue_value",
             "environment.wind.angleApparent_value",
             "environment.wind.speedApparent_value",
+            "environment.depth.belowTransducer_value",
             "navigation.position_lat",
             # "navigation.position_lon", # Handled together with lat
-            "navigation.speedOverGround_value",
-            "navigation.courseOverGroundTrue_value"
         ]
         measurement_names = {
-            "environment.depth.belowTransducer_value": "Depth",
+            "navigation.speedOverGround_value": "SOG",
+            "navigation.courseOverGroundTrue_value": "COG",
             "environment.wind.angleApparent_value": "AWA",
             "environment.wind.speedApparent_value": "AWS",
-            "navigation.speedOverGround_value": "SOG",
-            "navigation.courseOverGroundTrue_value": "COG T"
+            "environment.depth.belowTransducer_value": "Depth",
         }
         try:
             result = {}
@@ -100,6 +100,7 @@ class DataGetter:
 
             with open(json_file_path, 'w') as f:
                 json.dump(existing_data, f, indent=4)
+                f.write('\n')  # Ensure file ends with a newline
 
         except Exception as e:
             raise Exception(f"Error updating JSON file: {str(e)}")
