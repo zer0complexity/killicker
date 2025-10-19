@@ -1,5 +1,6 @@
 #!/usr/bin/env /usr/local/bin/python3
 
+import json
 from influxdb_client import InfluxDBClient
 
 
@@ -81,9 +82,30 @@ class DataGetter:
             client.close()
             return result
 
+    def update_json_file(self, json_file_path, new_data):
+        """
+        Update the JSON file with new data.
+
+        Args:
+            new_data (list): New data to be added to the JSON file
+        """
+        try:
+            if os.path.exists(json_file_path):
+                with open(json_file_path, 'r') as f:
+                    existing_data = json.load(f)
+            else:
+                existing_data = []
+
+            existing_data["points"].extend(new_data)
+
+            with open(json_file_path, 'w') as f:
+                json.dump(existing_data, f, indent=4)
+
+        except Exception as e:
+            raise Exception(f"Error updating JSON file: {str(e)}")
+
 
 if __name__ == "__main__":
-    import json
     import os
     import time
 
@@ -100,9 +122,10 @@ if __name__ == "__main__":
 
     points = getter.get_data(
         start_time = "2025-08-21T09:00:00.000Z",
-        stop_time = "2025-08-21T10:00:00.000Z"
-        # stop_time = "2025-08-21T22:40:00.000Z"
+        # stop_time = "2025-08-21T10:00:00.000Z"
+        stop_time = "2025-08-21T22:40:00.000Z"
     )
+
     for point in points:
-        print(json.dumps(point, indent=4))
-        time.sleep(1)
+        getter.update_json_file("data/20251016-1626.json", [point])
+        time.sleep(8)
