@@ -99,13 +99,14 @@ function placeMarker(pointData, svg, map) {
             infoWindow.close();
         } else {
             const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
+            // TODO: Iterate over all available data fields instead of hardcoding, skipping position and timestamp
             infoWindow.setContent(`
                 <html>
                     <strong>${ts}</strong><br>
                     <strong>SOG:</strong> ${pointData.SOG || 'N/A'} kn<br>
                     <strong>COG:</strong> ${pointData.COG || 'N/A'}° T<br>
                     <strong>AWS:</strong> ${pointData.AWS || 'N/A'} kn<br>
-                    <strong>AWA:</strong> ${pointData.AWA || 'N/A'}° T
+                    <strong>AWA:</strong> ${pointData.AWA || 'N/A'}°
                 </html>
             `);
             infoWindow.open(marker.map, marker);
