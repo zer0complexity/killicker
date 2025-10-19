@@ -1,8 +1,6 @@
 #!/usr/bin/env /usr/local/bin/python3
 
-import json
 from influxdb_client import InfluxDBClient
-import os
 
 
 class DataGetter:
@@ -32,14 +30,13 @@ class DataGetter:
             union(tables: [winddepth, sogcogpos])
                 |> pivot(rowKey:["_time", "_start", "_stop"], columnKey: ["_measurement", "_field"], valueColumn: "_value")
         '''
-        result = {}
         query_api = client.query_api()
         measurements = [
             "environment.depth.belowTransducer_value",
             "environment.wind.angleApparent_value",
             "environment.wind.speedApparent_value",
             "navigation.position_lat",
-            "navigation.position_lon",
+            # "navigation.position_lon", # Handled together with lat
             "navigation.speedOverGround_value",
             "navigation.courseOverGroundTrue_value"
         ]
@@ -47,12 +44,11 @@ class DataGetter:
             "environment.depth.belowTransducer_value": "Depth",
             "environment.wind.angleApparent_value": "AWA",
             "environment.wind.speedApparent_value": "AWS",
-            # "navigation.position_lat": "lat",
-            # "navigation.position_lon": "lng",
             "navigation.speedOverGround_value": "SOG",
             "navigation.courseOverGroundTrue_value": "COG T"
         }
         try:
+            result = {}
             tables = query_api.query(query)
 
             for table in tables:
@@ -76,6 +72,9 @@ class DataGetter:
                             else:
                                 values[measurement_names[m]] = record.values.get(m)
 
+            # Convert result to a list of dicts sorted by timestamp
+            result = [{"timestamp": ts, **data} for ts, data in sorted(result.items())]
+
         except Exception as e:
             print(f"Error querying InfluxDB: {e}")
         finally:
@@ -84,6 +83,10 @@ class DataGetter:
 
 
 if __name__ == "__main__":
+    import json
+    import os
+    import time
+
     token_path = os.path.join(os.path.dirname(__file__), ".influx-token")
     with open(token_path, "r", encoding="utf-8") as f:
         token = f.read()
@@ -95,9 +98,11 @@ if __name__ == "__main__":
         influx_bucket = "killick"
     )
 
-    data = getter.get_data(
+    points = getter.get_data(
         start_time = "2025-08-21T09:00:00.000Z",
         stop_time = "2025-08-21T10:00:00.000Z"
         # stop_time = "2025-08-21T22:40:00.000Z"
     )
-    print(json.dumps(data, indent=4))
+    for point in points:
+        print(json.dumps(point, indent=4))
+        time.sleep(1)
