@@ -48,10 +48,11 @@ async function fetchAndProcessJsonFile(url, callback) {
 }
 
 function getNewData(map) {
-    fetchAndProcessJsonFile('data/files.json', (data) => {
+    const dataUrl = 'https://zer0complexity.github.io/killicker-data';
+    fetchAndProcessJsonFile(`${dataUrl}/files.json`, (data) => {
         if (data.files && data.files.length > 0) {
             const latestFile = data.files.at(-1);
-            fetchAndProcessJsonFile(`data/${latestFile}`, (jsonData) => {
+            fetchAndProcessJsonFile(`${dataUrl}/${latestFile}`, (jsonData) => {
                 const trackLength = track.getPath().length;
                 if (jsonData.points && jsonData.points.length > trackLength) {
                     jsonData.points.slice(trackLength, jsonData.points.length).forEach(element => {
