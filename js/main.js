@@ -25,7 +25,7 @@ async function initMap() {
 
     // The map, centered at position
     return new google.maps.Map(document.getElementById("map"), {
-        zoom: 8,
+        zoom: 12,
         center: position,
         mapId: "cf429fad5670f355c2f94461",
         disableDefaultUI: true,
@@ -47,8 +47,7 @@ async function fetchAndProcessJsonFile(url, callback) {
     }
 }
 
-function getNewData(map) {
-    const dataUrl = 'https://zer0complexity.github.io/killicker-data';
+function getNewData(map, dataUrl = null) {
     fetchAndProcessJsonFile(`${dataUrl}/files.json`, (data) => {
         if (data.files && data.files.length > 0) {
             const latestFile = data.files.at(-1);
@@ -63,9 +62,12 @@ function getNewData(map) {
                         }
                         addPointToTrack(element.position, map, markers.length === 0);
                         prevPointData = element;
-                        // Add a transparent marker at the current position to allow info window interaction
-                        transparentMarker = placeMarker(element, circleSvgTransparent, map);
-                        markers.push(transparentMarker);
+                        // Add a transparent marker at the current position to allow info window interaction, unless it's the first point
+                        if (markers.length === 0) {
+                            markers.push(placeMarker(element, circleSvg, map));
+                        } else {
+                            markers.push(placeMarker(element, circleSvgTransparent, map));
+                        }
                     });
                 }
             });
@@ -129,7 +131,7 @@ function convertValue(key, value) {
             return { value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--', unit: ' ft' };
         case 'AWA':
             // SignalK AWA is in radians
-            return { value: (value * (180 / Math.PI)).toFixed(0), unit: '°' };
+            return { value: (value * (180 / Math.PI)).toFixed(0), unit: `° ${value < 0 ? 'port' : 'starboard'}` };
         case 'AWS':
         case 'SOG':
             // SignalK AWS is in m/s
@@ -168,6 +170,14 @@ initMap().then((map) => {
     track.setMap(map);
     infoWindow = new google.maps.InfoWindow();
 
-    getNewData(map);  // Initial data fetch
-    const intervalId = setInterval(getNewData, 5000, map);  // Fetch new data every 5 seconds
+    let dataUrl = '';
+    if (window.location.href.includes('https://zer0complexity.github.io')) {
+        console.log('Using GitHub Pages data URL');
+        dataUrl = 'https://zer0complexity.github.io/killicker-data';
+    } else {
+        console.log('Using local data URL');
+        dataUrl = 'killicker-data';
+    }
+    getNewData(map, dataUrl);  // Initial data fetch
+    const intervalId = setInterval(getNewData, 5000, map, dataUrl);  // Fetch new data every 5 seconds
 });
