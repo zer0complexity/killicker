@@ -131,7 +131,9 @@ function convertValue(key, value) {
             return { value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--', unit: ' ft' };
         case 'AWA':
             // SignalK AWA is in radians
-            return { value: (value * (180 / Math.PI)).toFixed(0), unit: `° ${value < 0 ? 'port' : 'starboard'}` };
+            return {
+                value: (Math.abs(value) * (180 / Math.PI)).toFixed(0), unit: `° ${value < 0 ? 'port' : 'starboard'}`
+            };
         case 'AWS':
         case 'SOG':
             // SignalK AWS is in m/s
@@ -178,6 +180,7 @@ initMap().then((map) => {
         console.log('Using local data URL');
         dataUrl = 'killicker-data';
     }
+    dataUrl = 'https://zer0complexity.github.io/killicker-data';
     getNewData(map, dataUrl);  // Initial data fetch
     const intervalId = setInterval(getNewData, 10000, map, dataUrl);  // Fetch new data every 10 seconds
 });
