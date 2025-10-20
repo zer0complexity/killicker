@@ -179,5 +179,5 @@ initMap().then((map) => {
         dataUrl = 'killicker-data';
     }
     getNewData(map, dataUrl);  // Initial data fetch
-    const intervalId = setInterval(getNewData, 5000, map, dataUrl);  // Fetch new data every 5 seconds
+    const intervalId = setInterval(getNewData, 10000, map, dataUrl);  // Fetch new data every 10 seconds
 });
