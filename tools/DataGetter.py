@@ -2,14 +2,17 @@
 
 import json
 from influxdb_client import InfluxDBClient
+from git import Repo
 
 
 class DataGetter:
-    def __init__(self, influx_url, influx_token, influx_org, influx_bucket):
+    def __init__(self, influx_url, influx_token, influx_org, influx_bucket, json_file_path, repo_path):
         self.influx_url = influx_url
         self.influx_token = influx_token
         self.influx_org = influx_org
         self.bucket = influx_bucket
+        self.json_file_path = json_file_path
+        self.repo_path = repo_path
 
     def get_data(self, start_time, stop_time):
         client = InfluxDBClient(url=self.influx_url, token=self.influx_token, org=self.influx_org)
@@ -48,6 +51,7 @@ class DataGetter:
             "environment.wind.speedApparent_value": "AWS",
             "environment.depth.belowTransducer_value": "Depth",
         }
+        sorted_names = ["SOG", "COG", "AWA", "AWS", "Depth", "position"]
         try:
             result = {}
             tables = query_api.query(query)
@@ -74,7 +78,10 @@ class DataGetter:
                                 values[measurement_names[m]] = record.values.get(m)
 
             # Convert result to a list of dicts sorted by timestamp
-            result = [{"timestamp": ts, **data} for ts, data in sorted(result.items())]
+            flattened_result = {}
+            for ts, data in result.items():
+                flattened_result[ts] = {key: data[key] for key in sorted_names if key in data}
+            result = [{"timestamp": ts, **data} for ts, data in flattened_result.items()]
 
         except Exception as e:
             print(f"Error querying InfluxDB: {e}")
@@ -82,7 +89,7 @@ class DataGetter:
             client.close()
             return result
 
-    def update_json_file(self, json_file_path, new_data):
+    def update_json_file(self, new_data):
         """
         Update the JSON file with new data.
 
@@ -90,20 +97,47 @@ class DataGetter:
             new_data (list): New data to be added to the JSON file
         """
         try:
-            if os.path.exists(json_file_path):
-                with open(json_file_path, 'r') as f:
+            if os.path.exists(self.json_file_path):
+                with open(self.json_file_path, 'r') as f:
                     existing_data = json.load(f)
             else:
                 existing_data = []
 
             existing_data["points"].extend(new_data)
 
-            with open(json_file_path, 'w') as f:
+            with open(self.json_file_path, 'w') as f:
                 json.dump(existing_data, f, indent=4)
                 f.write('\n')  # Ensure file ends with a newline
 
         except Exception as e:
             raise Exception(f"Error updating JSON file: {str(e)}")
+
+    def commit_and_push(self, commit_message=None):
+        """
+        Commit changes to the JSON file and push to GitHub.
+
+        Args:
+            commit_message (str): Optional commit message. If None, a default message is used.
+        """
+        try:
+            repo = Repo(self.repo_path)
+
+            if not commit_message:
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                commit_message = f"Update data - {current_time}"
+
+            # Stage the JSON file
+            repo.index.add([self.json_file_path])
+
+            # Commit changes
+            repo.index.commit(commit_message)
+
+            # Push to origin
+            origin = repo.remote('origin')
+            origin.push()
+
+        except Exception as e:
+            raise Exception(f"Error in Git operations: {str(e)}")
 
 
 if __name__ == "__main__":
@@ -114,11 +148,15 @@ if __name__ == "__main__":
     with open(token_path, "r", encoding="utf-8") as f:
         token = f.read()
 
+    os.chdir(os.path.join("..", "killicker-data"))
+
     getter = DataGetter(
         influx_url="http://localhost:8086",
         influx_token=token,
         influx_org="navi",
-        influx_bucket = "killick"
+        influx_bucket = "killick",
+        json_file_path="20250821-0500.json",
+        repo_path = "."
     )
 
     points = getter.get_data(
@@ -128,5 +166,7 @@ if __name__ == "__main__":
     )
 
     for point in points:
-        getter.update_json_file("data/20251016-1626.json", [point])
-        time.sleep(8)
+        getter.update_json_file([point])
+        getter.commit_and_push(commit_message="Added data point")
+        print(f"Pushed data point at {point['timestamp']}")
+        time.sleep(60)
