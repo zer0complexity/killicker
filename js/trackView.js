@@ -139,7 +139,6 @@ export default class TrackView {
 
     updateMarkerSizes(zoom) {
         const diameter = TrackView.getMarkerDiameter(zoom);
-        console.log(`Updating marker sizes for zoom level: ${zoom}; diameter: ${diameter}`);
         this.markers.forEach(element => {
             element.map = zoom < 10 ? null : this.map;
             const svg = element.content;
