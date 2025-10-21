@@ -64,10 +64,11 @@ async function initMap() {
 
     // The map, centered at position
     return new google.maps.Map(document.getElementById("map"), {
-        zoom: 12,
+        zoom: 14,
         center: position,
         mapId: "cf429fad5670f355c2f94461",
         disableDefaultUI: true,
+        mapTypeId: 'terrain',
     });
 }
 
@@ -120,6 +121,14 @@ function getNewData(dataUrl = null) {
 initMap().then((m) => {
     // assign module-level singleton map
     map = m;
+    map.addListener('zoom_changed', () => {
+        const zoom = map.getZoom();
+        if (zoom) {
+            trackViews.forEach(entry => {
+                entry.tv.updateMarkerSizes(zoom);
+            });
+        }
+    });
     TrackView.infoWindow = new google.maps.InfoWindow;
 
     const { trackView: initialTv } = createTrackView();

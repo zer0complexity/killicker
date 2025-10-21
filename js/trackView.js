@@ -2,13 +2,14 @@
 export default class TrackView {
 
     static domParser = new DOMParser();
+    static circleDiameterPixels = 32;
     static circleSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 200 200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
             <path stroke="#000000" stroke-width="4" fill="#FF9000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
         </svg>
     `;
     static circleSvgTransparent = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 200 200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
             <path stroke="#00000000" stroke-width="4" fill="#FF900000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
         </svg>
     `;
@@ -58,6 +59,9 @@ export default class TrackView {
 
     placeMarker(pointData, svg) {
         const pointElement = TrackView.domParser.parseFromString(svg, 'image/svg+xml').documentElement;
+        const diameter = TrackView.getMarkerDiameter(this.map.zoom);
+        pointElement.setAttribute('width', diameter);
+        pointElement.setAttribute('height', diameter);
 
         const marker = new google.maps.marker.AdvancedMarkerElement({
             map: this.map,
@@ -131,6 +135,21 @@ export default class TrackView {
                 }
             });
         }
+    }
+
+    updateMarkerSizes(zoom) {
+        const diameter = TrackView.getMarkerDiameter(zoom);
+        console.log(`Updating marker sizes for zoom level: ${zoom}; diameter: ${diameter}`);
+        this.markers.forEach(element => {
+            element.map = zoom < 10 ? null : this.map;
+            const svg = element.content;
+            svg.setAttribute('width', diameter);
+            svg.setAttribute('height', diameter);
+        });
+    }
+
+    static getMarkerDiameter(zoom) {
+        return TrackView.circleDiameterPixels * (zoom / 14);
     }
 
     // Remove all visuals from the map and clear internal state to allow GC
