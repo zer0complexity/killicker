@@ -122,12 +122,14 @@ initMap().then((m) => {
     // assign module-level singleton map
     map = m;
     map.addListener('zoom_changed', () => {
-        const zoom = map.getZoom();
-        if (zoom) {
-            trackViews.forEach(entry => {
-                entry.tv.updateMarkerSizes(zoom);
-            });
-        }
+        trackViews.forEach(entry => {
+            entry.tv.updateMarkerSizes();
+        });
+    });
+    map.addListener('bounds_changed', () => {
+        trackViews.forEach(entry => {
+            entry.tv.updateMarkerVisibilities();
+        });
     });
     TrackView.infoWindow = new google.maps.InfoWindow;
 

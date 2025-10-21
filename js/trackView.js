@@ -64,7 +64,7 @@ export default class TrackView {
         pointElement.setAttribute('height', diameter);
 
         const marker = new google.maps.marker.AdvancedMarkerElement({
-            map: this.map,
+            map: this.getMapForMarker(pointData.position),
             position: pointData.position,
             title: pointData.timestamp || '',
             content: pointElement,
@@ -137,14 +137,31 @@ export default class TrackView {
         }
     }
 
-    updateMarkerSizes(zoom) {
+    updateMarkerSizes() {
+        const zoom = this.map.getZoom();
         const diameter = TrackView.getMarkerDiameter(zoom);
         this.markers.forEach(element => {
-            element.map = zoom < 10 ? null : this.map;
             const svg = element.content;
             svg.setAttribute('width', diameter);
             svg.setAttribute('height', diameter);
         });
+        this.updateMarkerVisibilities();
+    }
+
+    updateMarkerVisibilities() {
+        this.markers.forEach(element => {
+            element.setMap(this.getMapForMarker(element.position));
+        });
+    }
+
+    getMapForMarker(position) {
+        const zoom = this.map.getZoom();
+        const bounds = this.map.getBounds();
+        if (bounds.contains(position) && zoom >= 10) {
+            return this.map;
+        } else {
+            return null;
+        }
     }
 
     static getMarkerDiameter(zoom) {
