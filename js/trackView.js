@@ -59,9 +59,6 @@ export default class TrackView {
 
     placeMarker(pointData, svg) {
         const pointElement = TrackView.domParser.parseFromString(svg, 'image/svg+xml').documentElement;
-        const diameter = TrackView.getMarkerDiameter(this.map.zoom);
-        pointElement.setAttribute('width', diameter);
-        pointElement.setAttribute('height', diameter);
 
         const marker = new google.maps.marker.AdvancedMarkerElement({
             map: this.getMapForMarker(pointData.position),
@@ -72,6 +69,7 @@ export default class TrackView {
             anchorTop: '-50%',
             gmpClickable: true,
         });
+        this.setMarkerDiameter(marker, TrackView.getMarkerDiameter(this.map.getZoom()));
         marker.addListener("click", () => {
             if (TrackView.infoWindow.anchor === marker) {
                 TrackView.infoWindow.close();
@@ -137,21 +135,20 @@ export default class TrackView {
         }
     }
 
-    updateMarkerSizes() {
+    updateMarkers() {
         const zoom = this.map.getZoom();
         const diameter = TrackView.getMarkerDiameter(zoom);
         this.markers.forEach(element => {
             const svg = element.content;
-            svg.setAttribute('width', diameter);
-            svg.setAttribute('height', diameter);
-        });
-        this.updateMarkerVisibilities();
-    }
-
-    updateMarkerVisibilities() {
-        this.markers.forEach(element => {
+            this.setMarkerDiameter(element, diameter);
             element.setMap(this.getMapForMarker(element.position));
         });
+    }
+
+    setMarkerDiameter(marker, diameter) {
+        const svg = marker.content;
+        svg.setAttribute('width', diameter);
+        svg.setAttribute('height', diameter);
     }
 
     getMapForMarker(position) {

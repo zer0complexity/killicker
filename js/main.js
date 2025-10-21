@@ -64,7 +64,7 @@ async function initMap() {
 
     // The map, centered at position
     return new google.maps.Map(document.getElementById("map"), {
-        zoom: 14,
+        zoom: 12,
         center: position,
         mapId: "cf429fad5670f355c2f94461",
         disableDefaultUI: true,
@@ -121,14 +121,9 @@ function getNewData(dataUrl = null) {
 initMap().then((m) => {
     // assign module-level singleton map
     map = m;
-    map.addListener('zoom_changed', () => {
+    map.addListener('idle', () => {
         trackViews.forEach(entry => {
-            entry.tv.updateMarkerSizes();
-        });
-    });
-    map.addListener('bounds_changed', () => {
-        trackViews.forEach(entry => {
-            entry.tv.updateMarkerVisibilities();
+            entry.tv.updateMarkers();
         });
     });
     TrackView.infoWindow = new google.maps.InfoWindow;
