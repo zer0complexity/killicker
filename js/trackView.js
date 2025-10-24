@@ -24,19 +24,6 @@ export default class TrackView {
         return TrackView.arrowSvgCache.replace(/FILL_COLOR/g, colour);
     }
 
-    static circleSvg(colour = '#FF9000') {
-        return `
-            <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
-                <path stroke="#000000" stroke-width="4" fill="${colour}" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
-            </svg>
-        `;
-    }
-    static circleSvgTransparent = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
-            <path stroke="#00000000" stroke-width="4" fill="#FF900000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
-        </svg>
-    `;
-
     constructor(map, trackColour) {
         this.map = map;
         this.trackColour = trackColour;
@@ -198,7 +185,7 @@ export default class TrackView {
     }
 
     static getMarkerDiameter(zoom) {
-        return TrackView.circleDiameterPixels * (zoom / 22);
+        return TrackView.circleDiameterPixels * (zoom / 20);
     }
 
     // Remove all visuals from the map and clear internal state to allow GC

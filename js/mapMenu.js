@@ -64,7 +64,7 @@ export default class MapMenu {
             input.className = 'map-menu-checkbox';
 
             const label = document.createElement('label');
-            label.textContent = `${track.id} (${track.pointCount || 0})`;
+            label.textContent = `${MapMenu.beautifyTrackId(track.id)} (${track.pointCount || 0} points)`;
             label.className = 'map-menu-label';
 
             input.addEventListener('change', (ev) => {
@@ -145,5 +145,16 @@ export default class MapMenu {
         } catch (err) {
             // ignore
         }
+    }
+
+    static beautifyTrackId(trackId) {
+        // Example: convert "20240615-1234" to "2024-06-15"
+        const match = trackId.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})$/);
+        if (match) {
+            const [, year, month, day, hour, minute] = match;
+            return `${year}-${month}-${day}`;
+        }
+        // Fallback: do nothing
+        return trackId;
     }
 }
