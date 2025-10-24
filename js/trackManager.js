@@ -1,11 +1,19 @@
 // TrackManager module: manages track data and updates.
 export default class TrackManager {
-    constructor(tracksJson) {
-        this.tracks = tracksJson.tracks || [];
-        // Map: trackId -> { pointCount: number, listeners: Set<Function> }
+    static pollInterval = 10000; // ms
+
+    constructor(baseUrl) {
+        this.tracks = [];
+        // Map: trackId -> { pointCount: number, listeners: Set<Function>, points: Array }
         this.trackData = new Map();
-        this.fetchInterval = null;
-        this.pollingInterval = 10000; // default polling interval in ms
+        // timer for polling tracks.json
+        this.tracksPollTimer = null;
+        // listeners for full tracks list changes
+        this.tracksListeners = new Set();
+        // cache of last known pointCount per track from tracks.json
+        this.tracksPointCounts = new Map(this.tracks.map(t => [t.id, t.pointCount || 0]));
+        // base URL provided by main.js
+        this.baseUrl = baseUrl?.replace(/\/$/, '') || '';
     }
 
     /**
@@ -48,7 +56,6 @@ export default class TrackManager {
                 data.listeners.delete(listener);
                 if (data.listeners.size === 0) {
                     this.trackData.delete(trackId);
-                    this.stopPollingTrack(trackId);
                 }
             }
         };
@@ -63,20 +70,26 @@ export default class TrackManager {
     }
 
     /**
+     * Register a listener for changes to the full tracks list (tracks.json)
+     * @param {Function} listener - Function(tracksArray)
+     * @returns {Function} Unregister function
+     */
+    registerTracksListener(listener) {
+        this.tracksListeners.add(listener);
+        // call immediately with current state
+        try { listener(this.getTracks()); } catch (e) { console.error('tracks listener immediate call failed', e); }
+        return () => { this.tracksListeners.delete(listener); };
+    }
+
+    /**
      * Fetch points for a specific track
      * @param {string} trackId - The ID of the track to fetch
      * @returns {Promise} Promise that resolves when points are fetched
      */
     async fetchTrackPoints(trackId) {
+        console.log(`Fetching points for track ${trackId}...`);
         try {
-            let dataUrl = '';
-            if (window.location.href.includes('https://zer0complexity.github.io')) {
-                dataUrl = 'https://zer0complexity.github.io/killicker-data';
-            } else {
-                dataUrl = 'killicker-data';
-            }
-
-            const response = await fetch(`${dataUrl}/${trackId}.json`);
+            const response = await fetch(`${this.baseUrl}/${trackId}.json`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -103,36 +116,54 @@ export default class TrackManager {
     }
 
     /**
-     * Start polling for a specific track
-     * @param {string} trackId - The ID of the track to poll
+     * Start polling tracks.json and notify listeners when it changes.
+     * Also detect pointCount changes and fetch new points for tracks with listeners.
      */
-    startPollingTrack(trackId) {
-        // Only start polling if we have listeners for this track
-        if (!this.trackData.has(trackId)) {
-            return;
+    startPollingTracks() {
+        if (this.tracksPollTimer) {
+            clearInterval(this.tracksPollTimer);
+            this.tracksPollTimer = null;
         }
-
-        if (this.fetchInterval) {
-            clearInterval(this.fetchInterval);
-        }
-
-        this.fetchInterval = setInterval(async () => {
+        const poll = async () => {
+            console.log(`Polling tracks.json for updates...`);
             try {
-                await this.fetchTrackPoints(trackId);
-            } catch (error) {
-                console.error(`Error polling track ${trackId}:`, error);
-            }
-        }, this.pollingInterval);
-    }
+                const response = await fetch(`${this.baseUrl}/tracks.json`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const nextTracks = data.tracks || [];
 
-    /**
-     * Stop polling for a specific track
-     */
-    stopPollingTrack(trackId) {
-        if (this.fetchInterval) {
-            clearInterval(this.fetchInterval);
-            this.fetchInterval = null;
-        }
+                // Compare pointCounts to detect changes
+                const nextCounts = new Map(nextTracks.map(t => [t.id, t.pointCount || 0]));
+
+                // Notify point listeners only when pointCount changes
+                for (const [trackId, newCount] of nextCounts.entries()) {
+                    const oldCount = this.tracksPointCounts.get(trackId) ?? 0;
+                    if (newCount > oldCount) {
+                        // Only fetch if there are listeners for this track
+                        const td = this.trackData.get(trackId);
+                        if (td && td.listeners && td.listeners.size > 0) {
+                            await this.fetchTrackPoints(trackId);
+                        } else {
+                            // update cached count even if no listeners; points will be fetched on first registration
+                            this.tracksPointCounts.set(trackId, newCount);
+                        }
+                    }
+                }
+
+                // Update tracks list and cached counts
+                this.tracks = nextTracks;
+                this.tracksPointCounts = nextCounts;
+                this.tracksListeners.forEach(fn => {
+                    try { fn(this.tracks); } catch (e) { console.error('Error in tracks listener:', e); }
+                });
+            } catch (err) {
+                console.error('Error polling tracks.json:', err);
+            }
+        };
+        // Initial poll immediately
+        poll();
+        // Schedule periodic polls
+        this.tracksPollTimer = setInterval(poll, TrackManager.pollInterval);
     }
 
     /**
@@ -140,9 +171,9 @@ export default class TrackManager {
      */
     destroy() {
         this.trackData.clear();
-        if (this.fetchInterval) {
-            clearInterval(this.fetchInterval);
-            this.fetchInterval = null;
+        if (this.tracksPollTimer) {
+            clearInterval(this.tracksPollTimer);
+            this.tracksPollTimer = null;
         }
     }
 
@@ -150,6 +181,10 @@ export default class TrackManager {
     notifyListeners(trackId, newPoints) {
         const trackData = this.trackData.get(trackId);
         if (trackData?.listeners) {
+            // Update cached pointCount from points array length if greater
+            if (Array.isArray(trackData.points)) {
+                this.tracksPointCounts.set(trackId, trackData.points.length);
+            }
             trackData.listeners.forEach(listener => {
                 try {
                     listener(newPoints);

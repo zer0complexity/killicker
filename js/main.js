@@ -41,9 +41,6 @@ async function createTrackView(options = {}) {
         tv.processPoints(points);
     });
 
-    // Start polling for this track
-    trackManager.startPollingTrack(trackId);
-
     // Add to the array of TrackViews
     trackViews.push(tv);
     // Track active by trackId so we can destroy later
@@ -79,24 +76,10 @@ async function initTrackManager() {
         dataUrl = 'killicker-data';
     }
 
-    try {
-        const response = await fetch(`${dataUrl}/tracks.json`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        trackManager = new TrackManager(data);
+    trackManager = new TrackManager(dataUrl);
 
-        // Start polling for the latest track
-        if (data.tracks && data.tracks.length > 0) {
-            const latestTrack = data.tracks.at(-1);
-            await trackManager.fetchTrackPoints(latestTrack.id);
-            trackManager.startPollingTrack(latestTrack.id);  // Poll every 10 seconds
-        }
-    } catch (error) {
-        console.error("Error initializing TrackManager:", error);
-        throw error;
-    }
+    // Start polling tracks.json globally
+    trackManager.startPollingTracks();
 }
 
 // Initialize the application
@@ -156,7 +139,6 @@ initMap().then(async (m) => {
         }
     });
 
-    // Create an initial TrackView for the latest track and check the box
-    // const initial = await createTrackView();
-    // menu.setChecked(initial.trackId, true);
+    // Keep the menu in sync with tracks.json changes
+    trackManager.registerTracksListener(menu.setTracks.bind(menu));
 });
