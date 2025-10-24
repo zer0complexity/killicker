@@ -1,11 +1,13 @@
 import TrackView from './trackView.js';
 import TrackManager from './trackManager.js';
+import MapMenu from './mapMenu.js';
 
 // module-level singletons (created in main.js)
 
 let map = null;
 let trackManager = null;
-const trackViews = []; // Array to keep TrackView instances
+const trackViews = []; // Array to keep TrackView instances (for updateMarkers)
+const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
 
 /**
  * Factory to create and register a TrackView.
@@ -44,6 +46,8 @@ async function createTrackView(options = {}) {
 
     // Add to the array of TrackViews
     trackViews.push(tv);
+    // Track active by trackId so we can destroy later
+    activeTrackViews.set(trackId, { trackView: tv, unregister });
 
     return { trackView: tv, trackId, unregister };
 }
@@ -107,5 +111,33 @@ initMap().then(async (m) => {
 
     // Initialize TrackManager and create initial TrackView
     await initTrackManager();
-    await createTrackView(); // Creates a TrackView for the latest track
+
+    // Create the map menu UI and populate with tracks
+    const menu = new MapMenu(map, trackManager.getTracks(), async (trackId, checked) => {
+        try {
+            if (checked) {
+                // create TrackView if not already active
+                if (!activeTrackViews.has(trackId)) {
+                    await createTrackView({ trackId });
+                }
+            } else {
+                // unregister and destroy if active
+                const entry = activeTrackViews.get(trackId);
+                if (entry) {
+                    try { entry.unregister(); } catch (e) { /* ignore */ }
+                    try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
+                    activeTrackViews.delete(trackId);
+                    // also remove from trackViews array
+                    const idx = trackViews.findIndex(tv => tv === entry.trackView);
+                    if (idx !== -1) trackViews.splice(idx, 1);
+                }
+            }
+        } catch (err) {
+            console.error('Error handling menu change:', err);
+        }
+    });
+
+    // Create an initial TrackView for the latest track and check the box
+    const initial = await createTrackView();
+    menu.setChecked(initial.trackId, true);
 });

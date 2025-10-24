@@ -1,0 +1,90 @@
+/* Menu-specific styles moved from styles.css */
+.map-menu-container {
+    background: rgba(255,255,255,0.95);
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    padding: 6px;
+    margin: 8px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    color: #222;
+    max-height: 60vh;
+    overflow: auto;
+    width: 220px;
+}
+
+.map-menu-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.map-menu-hamburger {
+    font-size: 18px;
+    margin-right: 8px;
+}
+
+/* Animates the hamburger when open */
+.map-menu-hamburger {
+    transition: transform 200ms ease-in-out;
+}
+
+.map-menu-container.open .map-menu-hamburger {
+    transform: rotate(90deg) scale(1.05);
+}
+
+.map-menu-title {
+    font-weight: 600;
+}
+
+.map-menu-body {
+    margin-top: 8px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 260ms ease-in-out, opacity 200ms ease-in-out;
+}
+/* Container open state expands the body */
+.map-menu-container.open .map-menu-body {
+    max-height: 60vh; /* matches container max-height */
+    opacity: 1;
+}
+
+.map-menu-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.map-menu-all-row {
+    padding: 6px 0 10px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    justify-content: center;
+}
+
+.map-menu-all-button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.map-menu-all-button:hover {
+    background: #005fa3;
+}
+
+.map-menu-checkbox {
+    margin-right: 8px;
+}
+
+.map-menu-label {
+    flex: 1;
+    cursor: pointer;
+}
+/* No keyboard focus styles (keyboard/ARIA changes reverted) */
