@@ -3,19 +3,23 @@ export default class TrackView {
 
     static domParser = new DOMParser();
     static circleDiameterPixels = 32;
-    static circleSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
-            <path stroke="#000000" stroke-width="4" fill="#FF9000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
-        </svg>
-    `;
+
+    static circleSvg(colour = '#FF9000') {
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
+                <path stroke="#000000" stroke-width="4" fill="${colour}" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
+            </svg>
+        `;
+    }
     static circleSvgTransparent = `
         <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 200 200">
             <path stroke="#00000000" stroke-width="4" fill="#FF900000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
         </svg>
     `;
 
-    constructor(map) {
+    constructor(map, trackColour) {
         this.map = map;
+        this.trackColour = trackColour;
         this.trackPoints = [];
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
@@ -25,7 +29,7 @@ export default class TrackView {
         this.track = new google.maps.Polyline({
             geodesic: true,
             clickable: false,
-            strokeColor: "#FF9000",
+            strokeColor: trackColour, // "#FF9000",
             strokeOpacity: 1.0,
             strokeWeight: 6,
             icons: [
@@ -116,15 +120,16 @@ export default class TrackView {
         const trackLength = this.track.getPath().length;
         if (points.length > trackLength) {
             points.slice(trackLength, points.length).forEach(element => {
+                const trackColour = TrackView.circleSvg(this.trackColour);
                 if (this.markers.length > 0 && this.prevPointData) {
                     this.markers.at(-1).setMap(null);  // Remove the last transparent marker
                     this.markers.pop();
-                    this.markers.push(this.placeMarker(this.prevPointData, TrackView.circleSvg));
+                    this.markers.push(this.placeMarker(this.prevPointData, trackColour));
                 }
                 this.addPointToTrack(element.position, this.markers.length === 0);
                 this.prevPointData = element;
                 if (this.markers.length === 0) {
-                    this.markers.push(this.placeMarker(element, TrackView.circleSvg));
+                    this.markers.push(this.placeMarker(element, trackColour));
                 } else {
                     this.markers.push(this.placeMarker(element, TrackView.circleSvgTransparent));
                 }

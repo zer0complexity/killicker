@@ -23,7 +23,7 @@ async function createTrackView(options = {}) {
         throw new Error('createTrackView called before TrackManager initialization');
     }
 
-    let { trackId } = options;
+    let { trackId, trackColour } = options;
 
     // If no trackId provided, use the latest track
     if (!trackId) {
@@ -34,7 +34,7 @@ async function createTrackView(options = {}) {
         trackId = tracks[tracks.length - 1].id;
     }
 
-    const tv = new TrackView(map);
+    const tv = new TrackView(map, trackColour);
 
     // Register listener for track updates
     const unregister = await trackManager.registerListener(trackId, (points) => {
@@ -111,13 +111,33 @@ initMap().then(async (m) => {
     // Initialize TrackManager and create initial TrackView
     await initTrackManager();
 
+    const liveTrackColour = "#ff9000";
+    const trackColours = [
+        "#ff1a1a",
+        "#ff7a1a",
+        "#ffd21a",
+        "#aaff1a",
+        "#1aff7a",
+        "#1affd2",
+        "#1aaaff",
+        "#1a5aff",
+        "#7a1aff",
+        "#d21aff",
+        "#ff1aa6",
+        "#ff1a5a",
+        "#ff4c1a",
+        "#ffb31a",
+        "#5aff1a",
+        "#1aff4c"
+    ];
     // Create the map menu UI and populate with tracks
     const menu = new MapMenu(map, trackManager.getTracks(), async (trackId, checked) => {
         try {
             if (checked) {
                 // create TrackView if not already active
                 if (!activeTrackViews.has(trackId)) {
-                    await createTrackView({ trackId });
+                    const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
+                    await createTrackView({ trackId, trackColour: trackColours[idx % trackColours.length] });
                 }
             } else {
                 // unregister and destroy if active
@@ -137,6 +157,6 @@ initMap().then(async (m) => {
     });
 
     // Create an initial TrackView for the latest track and check the box
-    const initial = await createTrackView();
-    menu.setChecked(initial.trackId, true);
+    // const initial = await createTrackView();
+    // menu.setChecked(initial.trackId, true);
 });
