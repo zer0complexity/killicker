@@ -3,6 +3,26 @@ export default class TrackView {
 
     static domParser = new DOMParser();
     static circleDiameterPixels = 32;
+    static arrowSvgCache = null;
+
+    static async loadArrowSvg(colour) {
+        if (!TrackView.arrowSvgCache) {
+            try {
+                const response = await fetch('images/arrow_up.svg');
+                TrackView.arrowSvgCache = await response.text();
+            } catch (error) {
+                console.error('Failed to load arrow_up.svg:', error);
+                // Fallback to a simple arrow
+                TrackView.arrowSvgCache = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="${TrackView.circleDiameterPixels}" height="${TrackView.circleDiameterPixels}" viewBox="0 0 128 128">
+                        <polygon points="64,8 120,120 8,120" fill="FILL_COLOR"/>
+                    </svg>
+                `;
+            }
+        }
+        // Replace FILL_COLOR placeholder with actual color
+        return TrackView.arrowSvgCache.replace(/FILL_COLOR/g, colour);
+    }
 
     static circleSvg(colour = '#FF9000') {
         return `
@@ -29,23 +49,9 @@ export default class TrackView {
         this.track = new google.maps.Polyline({
             geodesic: true,
             clickable: false,
-            strokeColor: trackColour, // "#FF9000",
+            strokeColor: trackColour,
             strokeOpacity: 1.0,
             strokeWeight: 6,
-            icons: [
-                {
-                    icon: {
-                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        fillColor: "#FF0050",
-                        fillOpacity: 1,
-                        strokeColor: "#000000",
-                        strokeWeight: 2,
-                        anchor: new google.maps.Point(0, 1),
-                    },
-                    offset: '100%',
-                    repeat: '0px',
-                }
-            ]
         });
         this.track.setMap(this.map);
     }
@@ -60,6 +66,31 @@ export default class TrackView {
 
     placeMarker(pointData, svg) {
         const pointElement = TrackView.domParser.parseFromString(svg, 'image/svg+xml').documentElement;
+
+        // Set dimensions for the arrow
+        pointElement.setAttribute('width', TrackView.circleDiameterPixels);
+        pointElement.setAttribute('height', TrackView.circleDiameterPixels);
+
+        // Rotate the arrow around its center if COG (radians) is present
+        let angle = null;
+        if (pointData && typeof pointData.COG === 'number' && isFinite(pointData.COG)) {
+            angle = (pointData.COG * (180 / Math.PI)) % 360; // radians -> degrees
+            if (angle < 0) angle += 360;
+        }
+        if (angle !== null) {
+            // Prefer transforming the outer <g> that contains the geometry
+            const outerGroup = pointElement.querySelector('g');
+            if (outerGroup) {
+                const existing = outerGroup.getAttribute('transform') || '';
+                const rotateStr = ` rotate(${angle} 64 64)`; // viewBox center
+                outerGroup.setAttribute('transform', `${existing}${rotateStr}`.trim());
+            } else {
+                // Fallback: use CSS transform on the root SVG
+                pointElement.style.transformBox = 'fill-box';
+                pointElement.style.transformOrigin = '50% 50%';
+                pointElement.style.transform = `rotate(${angle}deg)`;
+            }
+        }
 
         const marker = new google.maps.marker.AdvancedMarkerElement({
             map: this.getMapForMarker(pointData.position),
@@ -115,23 +146,26 @@ export default class TrackView {
     /**
      * Process an array of point objects from the data source and render any new points
      */
-    processPoints(points) {
+    async processPoints(points) {
         if (!points || points.length === 0) return;
+
+        // Load arrow SVG once
+        const arrowSvg = await TrackView.loadArrowSvg(this.trackColour);
+
         const trackLength = this.track.getPath().length;
         if (points.length > trackLength) {
             points.slice(trackLength, points.length).forEach(element => {
-                const trackColour = TrackView.circleSvg(this.trackColour);
                 if (this.markers.length > 0 && this.prevPointData) {
                     this.markers.at(-1).setMap(null);  // Remove the last transparent marker
                     this.markers.pop();
-                    this.markers.push(this.placeMarker(this.prevPointData, trackColour));
+                    this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
                 }
                 this.addPointToTrack(element.position, this.markers.length === 0);
                 this.prevPointData = element;
                 if (this.markers.length === 0) {
-                    this.markers.push(this.placeMarker(element, trackColour));
+                    this.markers.push(this.placeMarker(element, arrowSvg));
                 } else {
-                    this.markers.push(this.placeMarker(element, TrackView.circleSvgTransparent));
+                    this.markers.push(this.placeMarker(element, arrowSvg));
                 }
             });
         }
@@ -156,7 +190,7 @@ export default class TrackView {
     getMapForMarker(position) {
         const zoom = this.map.getZoom();
         const bounds = this.map.getBounds();
-        if (bounds.contains(position) && zoom >= 10) {
+        if (bounds.contains(position) && zoom >= 11) {
             return this.map;
         } else {
             return null;
@@ -164,7 +198,7 @@ export default class TrackView {
     }
 
     static getMarkerDiameter(zoom) {
-        return TrackView.circleDiameterPixels * (zoom / 14);
+        return TrackView.circleDiameterPixels * (zoom / 22);
     }
 
     // Remove all visuals from the map and clear internal state to allow GC
