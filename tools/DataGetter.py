@@ -101,7 +101,7 @@ class DataGetter:
                 with open(self.json_file_path, 'r') as f:
                     existing_data = json.load(f)
             else:
-                existing_data = []
+                existing_data = { "points": [] }
 
             existing_data["points"].extend(new_data)
 
@@ -155,18 +155,20 @@ if __name__ == "__main__":
         influx_token=token,
         influx_org="navi",
         influx_bucket = "killick",
-        json_file_path="20250821-0500.json",
+        json_file_path="20250824-0500.json",
         repo_path = "."
     )
 
     points = getter.get_data(
-        start_time = "2025-08-21T09:00:00.000Z",
+        start_time = "2025-08-24T05:00:00.000Z",
         # stop_time = "2025-08-21T10:00:00.000Z"
-        stop_time = "2025-08-21T22:40:00.000Z"
+        stop_time = "2025-08-24T23:00:00.000Z"
     )
 
+    pointCount = len(points)
+    print(f"Retrieved {pointCount} data points")
     for point in points:
         getter.update_json_file([point])
-        getter.commit_and_push(commit_message="Added data point")
-        print(f"Pushed data point at {point['timestamp']}")
-        time.sleep(120)
+        # getter.commit_and_push(commit_message="Added data point")
+        # print(f"Pushed data point at {point['timestamp']}")
+        # time.sleep(120)
