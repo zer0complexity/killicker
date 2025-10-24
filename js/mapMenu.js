@@ -46,6 +46,14 @@ export default class MapMenu {
      * @param {Array} tracks
      */
     setTracks(tracks = []) {
+        // Capture currently selected track IDs to preserve selection
+        const previouslySelected = new Set();
+        if (this.checkboxes && this.checkboxes.size) {
+            for (const [id, input] of this.checkboxes.entries()) {
+                if (input && input.checked) previouslySelected.add(id);
+            }
+        }
+
         // Clear existing
         this.body.innerHTML = '';
         this.checkboxes.clear();
@@ -89,6 +97,9 @@ export default class MapMenu {
 
             this.checkboxes.set(track.id, input);
         });
+
+        // Re-apply previous selections without triggering change events
+        previouslySelected.forEach(id => this.setChecked(id, true));
 
         // Now create the show/hide-all control and insert it at the top
         const controlRow = document.createElement('div');
