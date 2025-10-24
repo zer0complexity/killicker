@@ -13,14 +13,11 @@ export default class TrackView {
             <path stroke="#00000000" stroke-width="4" fill="#FF900000" d="M 100 50 A 50 50 0 1 1 100 150 A 50 50 0 1 1 100 50"/>
         </svg>
     `;
-    // single shared InfoWindow instance used by all TrackViews
-    static infoWindow = null;
 
     constructor(map) {
         this.map = map;
         this.trackPoints = [];
-        // flag to indicate if this instance owns the infoWindow (so destroy() can avoid closing shared instance)
-        this._ownsInfoWindow = !TrackView.infoWindow;
+        this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
         this.prevPointData = null;
 
@@ -71,8 +68,8 @@ export default class TrackView {
         });
         this.setMarkerDiameter(marker, TrackView.getMarkerDiameter(this.map.getZoom()));
         marker.addListener("click", () => {
-            if (TrackView.infoWindow.anchor === marker) {
-                TrackView.infoWindow.close();
+            if (this.infoWindow.anchor === marker) {
+                this.infoWindow.close();
             } else {
                 const ts = pointData.timestamp ? new Date(pointData.timestamp).toUTCString() : 'No timestamp';
                 const metadataLines = [];
@@ -82,13 +79,13 @@ export default class TrackView {
                         metadataLines.push(`<strong>${key}:</strong> ${convertedValue.value}${convertedValue.unit}`);
                     }
                 }
-                TrackView.infoWindow.setContent(`
+                this.infoWindow.setContent(`
                     <html>
                         <strong>${ts}</strong><br>
                         ${metadataLines.join('<br>')}
                     </html>
                 `);
-                TrackView.infoWindow.open(marker.map, marker);
+                this.infoWindow.open(marker.map, marker);
             }
         });
 
@@ -180,10 +177,10 @@ export default class TrackView {
                 try { this.track.setMap(null); } catch (e) { /* ignore */ }
                 this.track = null;
             }
-            // close info window
-            if (TrackView.infoWindow) {
-                try { TrackView.infoWindow.close(); } catch (e) { /* ignore */ }
-                TrackView.infoWindow = null;
+            // close this instance's info window
+            if (this.infoWindow) {
+                try { this.infoWindow.close(); } catch (e) { /* ignore */ }
+                this.infoWindow = null;
             }
             // clear other references
             this.trackPoints = [];

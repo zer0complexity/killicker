@@ -169,4 +169,4 @@ if __name__ == "__main__":
         getter.update_json_file([point])
         getter.commit_and_push(commit_message="Added data point")
         print(f"Pushed data point at {point['timestamp']}")
-        time.sleep(60)
+        time.sleep(120)

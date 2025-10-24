@@ -107,7 +107,6 @@ initMap().then(async (m) => {
         // Update marker visibility for all TrackViews
         trackViews.forEach(tv => tv.updateMarkers());
     });
-    TrackView.infoWindow = new google.maps.InfoWindow;
 
     // Initialize TrackManager and create initial TrackView
     await initTrackManager();
