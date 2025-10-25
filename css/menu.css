@@ -8,8 +8,8 @@
     font-family: Arial, Helvetica, sans-serif;
     font-size: 13px;
     color: #222;
-    max-height: 60vh;
-    overflow: auto;
+    /* Let the body handle scrolling; keep header always visible */
+    overflow: visible;
     width: 220px;
 }
 
@@ -44,11 +44,26 @@
     max-height: 0;
     opacity: 0;
     transition: max-height 260ms ease-in-out, opacity 200ms ease-in-out;
+    display: flex;
+    flex-direction: column;
 }
 /* Container open state expands the body */
 .map-menu-container.open .map-menu-body {
-    max-height: 60vh; /* matches container max-height */
+    /* Allow the list to scroll within the body */
+    max-height: 60vh;
     opacity: 1;
+}
+
+/* Fixed controls area at top of the body */
+.map-menu-controls {
+    flex: 0 0 auto;
+}
+
+/* Scrollable list area */
+.map-menu-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .map-menu-row {

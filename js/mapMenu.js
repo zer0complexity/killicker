@@ -27,6 +27,12 @@ export default class MapMenu {
         // Body (checkbox list)
         this.body = document.createElement('div');
         this.body.className = 'map-menu-body';
+        this.controls = document.createElement('div');
+        this.controls.className = 'map-menu-controls';
+        this.list = document.createElement('div');
+        this.list.className = 'map-menu-list';
+        this.body.appendChild(this.controls);
+        this.body.appendChild(this.list);
         this.container.appendChild(this.body);
 
         // Toggle body visibility when header clicked
@@ -55,7 +61,8 @@ export default class MapMenu {
         }
 
         // Clear existing
-        this.body.innerHTML = '';
+        this.list.innerHTML = '';
+        this.controls.innerHTML = '';
         this.checkboxes.clear();
 
         // create the show/hide all control (inserted after rows are created)
@@ -93,7 +100,7 @@ export default class MapMenu {
 
             row.appendChild(input);
             row.appendChild(label);
-            this.body.appendChild(row);
+            this.list.appendChild(row);
 
             this.checkboxes.set(track.id, input);
         });
@@ -101,7 +108,10 @@ export default class MapMenu {
         // Re-apply previous selections without triggering change events
         previouslySelected.forEach(id => this.setChecked(id, true));
 
-        // Now create the show/hide-all control and insert it at the top
+        // Re-apply previous selections without triggering change events
+        previouslySelected.forEach(id => this.setChecked(id, true));
+
+        // Now create the show/hide-all control (fixed at top)
         const controlRow = document.createElement('div');
         controlRow.className = 'map-menu-all-row';
         allControlBtn = document.createElement('button');
@@ -122,12 +132,7 @@ export default class MapMenu {
             allControlBtn.textContent = shouldCheck ? 'Hide all' : 'Show all';
         });
         controlRow.appendChild(allControlBtn);
-        // insert at top
-        if (this.body.firstChild) {
-            this.body.insertBefore(controlRow, this.body.firstChild);
-        } else {
-            this.body.appendChild(controlRow);
-        }
+        this.controls.appendChild(controlRow);
     }
 
     /**
