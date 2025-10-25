@@ -278,8 +278,20 @@ if __name__ == "__main__":
         exit(1)
 
     days = (end_date - start_date).days + 1
+    ignore_days = [
+        datetime.date(2025, 6, 24), # Delete file
+        datetime.date(2025, 6, 27), # Delete file
+        datetime.date(2025, 6, 28), # Delete file
+        # datetime.date(2025, 7,  3),  # Removed last 2 points (post 20:00 GMT)
+        # datetime.date(2025, 7, 10),  # Removed first 2 points (before 17:00 GMT)
+        datetime.date(2025, 7, 12),  # Delete file; at anchor in Methodist Bay all day
+    ]
 
     for day in [start_date + datetime.timedelta(days=i) for i in range(days)]:
+        if day in ignore_days:
+            print(f"Skipping data retrieval for {day} as per ignore list.")
+            continue
+
         fname = day.strftime("%Y%m%d") + "-0500.json"
 
         getter = DataGetter(
