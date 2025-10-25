@@ -1,8 +1,6 @@
 // TrackManager module: manages track data and updates.
 export default class TrackManager {
-    static pollInterval = 10000; // ms
-
-    constructor(baseUrl) {
+    constructor(baseUrl, pollInterval, logger) {
         this.tracks = [];
         // Map: trackId -> { pointCount: number, listeners: Set<Function>, points: Array }
         this.trackData = new Map();
@@ -14,6 +12,8 @@ export default class TrackManager {
         this.tracksPointCounts = new Map(this.tracks.map(t => [t.id, t.pointCount || 0]));
         // base URL provided by main.js
         this.baseUrl = baseUrl?.replace(/\/$/, '') || '';
+        this.pollInterval = pollInterval;
+        this.logger = logger;
     }
 
     /**
@@ -39,14 +39,14 @@ export default class TrackManager {
             try {
                 listener(trackData.points);
             } catch (error) {
-                console.error(`Error invoking listener with existing points for track ${trackId}:`, error);
+                this.logger.error(`Error invoking listener with existing points for track ${trackId}:`, error);
             }
         } else {
             // If no points yet, fetch them immediately
             try {
                 await this.fetchTrackPoints(trackId);
             } catch (error) {
-                console.error(`Error fetching initial points for track ${trackId}:`, error);
+                this.logger.error(`Error fetching initial points for track ${trackId}:`, error);
             }
         }
 
@@ -77,7 +77,12 @@ export default class TrackManager {
     registerTracksListener(listener) {
         this.tracksListeners.add(listener);
         // call immediately with current state
-        try { listener(this.getTracks()); } catch (e) { console.error('tracks listener immediate call failed', e); }
+        try {
+            listener(this.getTracks());
+        }
+        catch (e) {
+            this.logger.error('tracks listener immediate call failed', e);
+        }
         return () => { this.tracksListeners.delete(listener); };
     }
 
@@ -87,7 +92,7 @@ export default class TrackManager {
      * @returns {Promise} Promise that resolves when points are fetched
      */
     async fetchTrackPoints(trackId) {
-        console.log(`Fetching points for track ${trackId}...`);
+        this.logger.debug(`Fetching points for track ${trackId}...`);
         try {
             const response = await fetch(`${this.baseUrl}/${trackId}.json`);
             if (!response.ok) {
@@ -110,7 +115,7 @@ export default class TrackManager {
                 }
             }
         } catch (error) {
-            console.error(`Error fetching track points for ${trackId}:`, error);
+            this.logger.error(`Error fetching track points for ${trackId}:`, error);
             throw error;
         }
     }
@@ -125,7 +130,7 @@ export default class TrackManager {
             this.tracksPollTimer = null;
         }
         const poll = async () => {
-            console.log(`Polling tracks.json for updates...`);
+            this.logger.debug(`Polling tracks.json for updates...`);
             try {
                 const response = await fetch(`${this.baseUrl}/tracks.json`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -154,16 +159,16 @@ export default class TrackManager {
                 this.tracks = nextTracks;
                 this.tracksPointCounts = nextCounts;
                 this.tracksListeners.forEach(fn => {
-                    try { fn(this.tracks); } catch (e) { console.error('Error in tracks listener:', e); }
+                    try { fn(this.tracks); } catch (e) { this.logger.error('Error in tracks listener:', e); }
                 });
             } catch (err) {
-                console.error('Error polling tracks.json:', err);
+                this.logger.error('Error polling tracks.json:', err);
             }
         };
         // Initial poll immediately
         poll();
         // Schedule periodic polls
-        this.tracksPollTimer = setInterval(poll, TrackManager.pollInterval);
+        this.tracksPollTimer = setInterval(poll, this.pollInterval);
     }
 
     /**
@@ -189,7 +194,7 @@ export default class TrackManager {
                 try {
                     listener(newPoints);
                 } catch (error) {
-                    console.error(`Error in track ${trackId} listener:`, error);
+                    this.logger.error(`Error in track ${trackId} listener:`, error);
                 }
             });
         }

@@ -1,9 +1,10 @@
-import TrackView from './trackView.js';
-import TrackManager from './trackManager.js';
+import Logger from './logger.js';
 import MapMenu from './mapMenu.js';
+import TrackManager from './trackManager.js';
+import TrackView from './trackView.js';
+
 
 // module-level singletons (created in main.js)
-
 let map = null;
 let trackManager = null;
 const trackViews = []; // Array to keep TrackView instances (for updateMarkers)
@@ -68,15 +69,20 @@ async function initMap() {
 
 async function initTrackManager() {
     let dataUrl = '';
+    let pollInterval = 60000; // 60 seconds
+    let logger = null;
     if (window.location.href.includes('https://zer0complexity.github.io')) {
         console.log('Using GitHub Pages data URL');
         dataUrl = 'https://zer0complexity.github.io/killicker-data';
+        logger = new Logger(Logger.ENVIRONMENTS.PROD, "TrackManager");
     } else {
         console.log('Using local data URL');
         dataUrl = 'killicker-data';
+        pollInterval = 5000; // 5 seconds
+        logger = new Logger(Logger.ENVIRONMENTS.DEV, "TrackManager");
     }
 
-    trackManager = new TrackManager(dataUrl);
+    trackManager = new TrackManager(dataUrl, pollInterval, logger);
 
     // Start polling tracks.json globally
     trackManager.startPollingTracks();
