@@ -280,6 +280,7 @@ if __name__ == "__main__":
     days = (end_date - start_date).days + 1
     ignore_days = [
         datetime.date(2025, 6, 24), # Delete file
+        # datetime.date(2025, 6, 26), # Removed last point (at 7:50 GMT)
         datetime.date(2025, 6, 27), # Delete file
         datetime.date(2025, 6, 28), # Delete file
         # datetime.date(2025, 7,  3),  # Removed last 2 points (post 20:00 GMT)
