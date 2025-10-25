@@ -1,6 +1,8 @@
 #!/usr/bin/env /usr/local/bin/python3
 
+import datetime
 import json
+import os
 from influxdb_client import InfluxDBClient
 from git import Repo
 
@@ -109,6 +111,11 @@ class DataGetter:
                 json.dump(existing_data, f, indent=4)
                 f.write('\n')  # Ensure file ends with a newline
 
+            # After updating the file, update tracks.json index
+            track_id = os.path.splitext(os.path.basename(self.json_file_path))[0]
+            point_count = len(existing_data.get("points", []))
+            self.update_tracks_index(track_id, point_count)
+
         except Exception as e:
             raise Exception(f"Error updating JSON file: {str(e)}")
 
@@ -123,11 +130,14 @@ class DataGetter:
             repo = Repo(self.repo_path)
 
             if not commit_message:
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 commit_message = f"Update data - {current_time}"
 
-            # Stage the JSON file
-            repo.index.add([self.json_file_path])
+            # Stage the data JSON file and tracks.json (absolute paths for robustness)
+            json_abs = os.path.abspath(self.json_file_path)
+            tracks_index_path = os.path.join(os.path.dirname(self.json_file_path), 'tracks.json')
+            tracks_abs = os.path.abspath(tracks_index_path)
+            repo.index.add([json_abs, tracks_abs])
 
             # Commit changes
             repo.index.commit(commit_message)
@@ -139,36 +149,174 @@ class DataGetter:
         except Exception as e:
             raise Exception(f"Error in Git operations: {str(e)}")
 
+    def update_tracks_index(self, track_id, point_count):
+        """
+        Update (or create) tracks.json to include the given track id with the provided pointCount.
+
+        - Adds a new entry if not present
+        - Updates pointCount if entry exists
+        - Keeps tracks sorted by id for stability
+        """
+        try:
+            # Load existing tracks.json or initialize a new structure
+            tracks_index_path = os.path.join(os.path.dirname(self.json_file_path), 'tracks.json')
+            tracks_payload = { 'tracks': [] }
+            if os.path.exists(tracks_index_path):
+                try:
+                    with open(tracks_index_path, 'r') as f:
+                        tracks_payload = json.load(f) or { 'tracks': [] }
+                except Exception:
+                    # If file is corrupt, reinitialize to safe default
+                    tracks_payload = { 'tracks': [] }
+
+            tracks = tracks_payload.get('tracks', [])
+            found = False
+            for t in tracks:
+                if t.get('id') == track_id:
+                    t['pointCount'] = point_count
+                    found = True
+                    break
+
+            if not found:
+                tracks.append({ 'id': track_id, 'pointCount': point_count })
+
+            # Keep a stable ordering by id (lexicographic works for YYYYMMDD-xxxx)
+            try:
+                tracks.sort(key=lambda x: x.get('id', ''))
+            except Exception:
+                pass
+
+            tracks_payload['tracks'] = tracks
+
+            with open(tracks_index_path, 'w') as f:
+                json.dump(tracks_payload, f, indent=4)
+                f.write('\n')
+
+        except Exception as e:
+            raise Exception(f"Error updating tracks.json: {str(e)}")
+
+
 
 if __name__ == "__main__":
     import os
     import time
+    import argparse
 
-    token_path = os.path.join(os.path.dirname(__file__), ".influx-token")
-    with open(token_path, "r", encoding="utf-8") as f:
-        token = f.read()
-
-    os.chdir(os.path.join("..", "killicker-data"))
-
-    getter = DataGetter(
-        influx_url="http://localhost:8086",
-        influx_token=token,
-        influx_org="navi",
-        influx_bucket = "killick",
-        json_file_path="20250824-0500.json",
-        repo_path = "."
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Fetch data from InfluxDB and update JSON files.')
+    parser.add_argument(
+        '--start-date',
+        type=str,
+        required=True,
+        help='Start date in YYYY-MM-DD format'
+    )
+    parser.add_argument(
+        '--end-date',
+        type=str,
+        required=True,
+        help='End date in YYYY-MM-DD format'
+    )
+    parser.add_argument(
+        '--influx-url',
+        type=str,
+        default='http://navi.local:8086',
+        help='InfluxDB server URL (default: http://navi.local:8086)'
+    )
+    parser.add_argument(
+        '--token-file',
+        type=str,
+        default='tools/.navi-influx-token',
+        help='Path to file containing the InfluxDB token (default: tools/.navi-influx-token)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='killicker-data',
+        help='Directory to store output files (default: killicker-data)'
+    )
+    parser.add_argument(
+        '--single-point-interval',
+        type=int,
+        metavar='SECONDS',
+        help='If set, update one point at a time, waiting SECONDS between updates (default: batch updates)'
+    )
+    parser.add_argument(
+        '--commit-push',
+        action='store_true',
+        help='Commit and push changes to GitHub (default: do not commit/push)'
     )
 
-    points = getter.get_data(
-        start_time = "2025-08-24T05:00:00.000Z",
-        # stop_time = "2025-08-21T10:00:00.000Z"
-        stop_time = "2025-08-24T23:00:00.000Z"
-    )
+    args = parser.parse_args()
 
-    pointCount = len(points)
-    print(f"Retrieved {pointCount} data points")
-    for point in points:
-        getter.update_json_file([point])
-        # getter.commit_and_push(commit_message="Added data point")
-        # print(f"Pushed data point at {point['timestamp']}")
-        # time.sleep(120)
+    # Validate single-point interval if provided
+    if args.single_point_interval is not None and args.single_point_interval < 0:
+        print("Error: --single-point-interval must be a non-negative integer")
+        exit(1)
+
+    # Read token from file
+    try:
+        with open(args.token_file, 'r', encoding='utf-8') as f:
+            token = f.read().strip()
+    except FileNotFoundError:
+        print(f"Error: Token file not found: {args.token_file}")
+        exit(1)
+    except Exception as e:
+        print(f"Error reading token file: {e}")
+        exit(1)
+
+    # Parse dates
+    try:
+        start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').date()
+        end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d').date()
+    except ValueError as e:
+        print(f"Error parsing dates: {e}")
+        print("Please use YYYY-MM-DD format")
+        exit(1)
+
+    if start_date > end_date:
+        print("Error: start-date must be before or equal to end-date")
+        exit(1)
+
+    days = (end_date - start_date).days + 1
+
+    for day in [start_date + datetime.timedelta(days=i) for i in range(days)]:
+        fname = day.strftime("%Y%m%d") + "-0500.json"
+
+        getter = DataGetter(
+            influx_url=args.influx_url,
+            influx_token=token,
+            influx_org="navi",
+            influx_bucket="killick",
+            json_file_path=os.path.join(args.output_dir, fname),
+            repo_path="."
+        )
+
+        points = getter.get_data(
+            start_time=day.strftime("%Y-%m-%dT00:00:00.000Z"),
+            stop_time=day.strftime("%Y-%m-%dT23:59:59.000Z")
+        )
+
+        pointCount = len(points)
+        if pointCount > 0:
+            print(f"Retrieved {pointCount} data points for {day}")
+
+            if args.single_point_interval is not None:
+                # Update one point at a time
+                count = 0
+                for point in points:
+                    getter.update_json_file([point])
+                    count += 1
+                    if args.commit_push:
+                        getter.commit_and_push(commit_message=f"Added data point at {point['timestamp']}")
+                        print(f"{count}/{len(points)}: Pushed data point at {point['timestamp']}", end='')
+                    if args.single_point_interval:
+                        time.sleep(args.single_point_interval)
+                print(f"\nFinished processing {pointCount} points for {day}")
+            else:
+                # Batch update all points
+                getter.update_json_file(points)
+                if args.commit_push:
+                    getter.commit_and_push(commit_message=f"Updated {fname} with {pointCount} points")
+                    print(f"Pushed {pointCount} points for {day}")
+        else:
+            print(f"No data points found for {day}")
