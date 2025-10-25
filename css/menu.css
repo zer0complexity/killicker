@@ -8,8 +8,11 @@
     font-family: Arial, Helvetica, sans-serif;
     font-size: 13px;
     color: #222;
-    /* Let the body handle scrolling; keep header always visible */
-    overflow: visible;
+    /* Keep header visible; contain the body within a fixed viewport slice */
+    display: flex;
+    flex-direction: column;
+    max-height: 70vh;
+    overflow: hidden; /* prevent the container itself from scrolling */
     width: 220px;
 }
 
@@ -50,8 +53,9 @@
 /* Container open state expands the body */
 .map-menu-container.open .map-menu-body {
     /* Allow the list to scroll within the body */
-    max-height: 60vh;
+    max-height: none; /* let flex sizing take over */
     opacity: 1;
+    flex: 1 1 auto; /* occupy remaining height within the container */
 }
 
 /* Fixed controls area at top of the body */
@@ -62,8 +66,9 @@
 /* Scrollable list area */
 .map-menu-list {
     flex: 1 1 auto;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-y: auto; /* only the list scrolls */
+    -webkit-overflow-scrolling: touch; /* smooth iOS/Android */
+    touch-action: pan-y; /* hint to allow vertical scroll gestures */
 }
 
 .map-menu-row {
