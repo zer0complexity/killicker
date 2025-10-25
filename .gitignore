@@ -1,5 +1,5 @@
 **/.DS_Store
 .GOOGLE_MAPS_API_KEY
 js/loader.js
-tools/.influx-token
+tools/.*influx-token
 killicker-data
