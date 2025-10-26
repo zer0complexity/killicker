@@ -66,9 +66,6 @@ export default class MapMenu {
         this.controls.innerHTML = '';
         this.checkboxes.clear();
 
-        // create the show/hide all control (inserted after rows are created)
-        let allControlBtn = null;
-
         // Create a list item for each track
         tracks.forEach(track => {
             const row = document.createElement('div');
@@ -114,32 +111,6 @@ export default class MapMenu {
 
         // Re-apply previous selections without triggering change events
         previouslySelected.forEach(id => this.setChecked(id, true));
-
-        // Re-apply previous selections without triggering change events
-        previouslySelected.forEach(id => this.setChecked(id, true));
-
-        // Now create the show/hide-all control (fixed at top)
-        const controlRow = document.createElement('div');
-        controlRow.className = 'map-menu-all-row';
-        allControlBtn = document.createElement('button');
-        allControlBtn.type = 'button';
-        allControlBtn.className = 'map-menu-all-button';
-        // Determine initial label
-        const anyUnchecked = Array.from(this.checkboxes.values()).some(i => !i.checked);
-        allControlBtn.textContent = anyUnchecked ? 'Show all' : 'Hide all';
-        allControlBtn.addEventListener('click', () => {
-            const inputs = Array.from(this.checkboxes.entries());
-            const shouldCheck = inputs.some(([id, input]) => !input.checked); // if any unchecked, we should check all
-            inputs.forEach(([id, input]) => {
-                if (input.checked !== shouldCheck) {
-                    input.checked = shouldCheck;
-                    try { this.onChange(id, shouldCheck); } catch (e) { console.error('MapMenu all toggle onChange error', e); }
-                }
-            });
-            allControlBtn.textContent = shouldCheck ? 'Hide all' : 'Show all';
-        });
-        controlRow.appendChild(allControlBtn);
-        this.controls.appendChild(controlRow);
     }
 
     /**

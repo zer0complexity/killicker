@@ -78,27 +78,6 @@
     border-bottom: 1px solid rgba(0,0,0,0.04);
 }
 
-.map-menu-all-row {
-    padding: 6px 0 10px 0;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-    display: flex;
-    justify-content: center;
-}
-
-.map-menu-all-button {
-    background: #0078d4;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 13px;
-}
-
-.map-menu-all-button:hover {
-    background: #005fa3;
-}
-
 .map-menu-checkbox {
     margin-right: 8px;
 }
