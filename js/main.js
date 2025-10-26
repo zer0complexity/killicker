@@ -72,11 +72,9 @@ async function initTrackManager() {
     let pollInterval = 60000; // 60 seconds
     let logger = null;
     if (window.location.href.includes('https://zer0complexity.github.io')) {
-        console.log('Using GitHub Pages data URL');
         dataUrl = 'https://zer0complexity.github.io/killicker-data';
         logger = new Logger(Logger.ENVIRONMENTS.PROD, "TrackManager");
     } else {
-        console.log('Using local data URL');
         dataUrl = 'killicker-data';
         pollInterval = 5000; // 5 seconds
         logger = new Logger(Logger.ENVIRONMENTS.DEV, "TrackManager");
