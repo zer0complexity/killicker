@@ -10,6 +10,7 @@ export default class MapMenu {
         this.onChange = onChange;
         this.container = document.createElement('div');
         this.container.className = 'map-menu-container';
+        this.swatchColours = new Map();
 
         // Header / hamburger button
         this.header = document.createElement('div');
@@ -103,6 +104,12 @@ export default class MapMenu {
             this.list.appendChild(row);
 
             this.checkboxes.set(track.id, input);
+
+            // If we already have a swatch colour for this track, apply it now
+            const colour = this.swatchColours.get(track.id);
+            if (colour) {
+                try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
+            }
         });
 
         // Re-apply previous selections without triggering change events
@@ -133,6 +140,48 @@ export default class MapMenu {
         });
         controlRow.appendChild(allControlBtn);
         this.controls.appendChild(controlRow);
+    }
+
+    /**
+     * Set or update the colour swatch for a given track row
+     * @param {string} trackId
+     * @param {string} colour - CSS colour string (e.g., '#ff9000' or 'rgb(...)')
+     */
+    setTrackSwatch(trackId, colour) {
+        this.swatchColours.set(trackId, colour);
+        const input = this.checkboxes.get(trackId);
+        if (!input) return;
+        const row = input.parentElement;
+        if (!row) return;
+        const label = row.querySelector('.map-menu-label');
+        if (!label) return;
+        let swatch = label.querySelector('.map-menu-swatch');
+        if (!swatch) {
+            swatch = document.createElement('span');
+            swatch.className = 'map-menu-swatch';
+            label.appendChild(swatch);
+        }
+        swatch.style.backgroundColor = colour;
+        swatch.title = `Colour: ${colour}`;
+    }
+
+    /**
+     * Remove the colour swatch for a given track and clear its stored colour
+     * @param {string} trackId
+     */
+    removeTrackSwatch(trackId) {
+        // Clear stored swatch colour so it won't be reapplied
+        this.swatchColours.delete(trackId);
+        const input = this.checkboxes.get(trackId);
+        if (!input) return;
+        const row = input.parentElement;
+        if (!row) return;
+        const label = row.querySelector('.map-menu-label');
+        if (!label) return;
+        const swatch = label.querySelector('.map-menu-swatch');
+        if (swatch && swatch.parentElement === label) {
+            label.removeChild(swatch);
+        }
     }
 
     /**

@@ -107,4 +107,15 @@
     flex: 1;
     cursor: pointer;
 }
+/* Colour swatch appended to labels */
+.map-menu-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-left: 8px;
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
+    vertical-align: -2px; /* nudge to align visually with text */
+}
 /* No keyboard focus styles (keyboard/ARIA changes reverted) */

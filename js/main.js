@@ -124,7 +124,10 @@ initMap().then(async (m) => {
                 // create TrackView if not already active
                 if (!activeTrackViews.has(trackId)) {
                     const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
-                    await createTrackView({ trackId, trackColour: trackColours[idx % trackColours.length] });
+                    const trackColour = trackColours[idx % trackColours.length];
+                    await createTrackView({ trackId, trackColour });
+                    // Update the menu swatch to reflect the colour used for this TrackView
+                    menu.setTrackSwatch(trackId, trackColour);
                 }
             } else {
                 // unregister and destroy if active
@@ -136,6 +139,8 @@ initMap().then(async (m) => {
                     // also remove from trackViews array
                     const idx = trackViews.findIndex(tv => tv === entry.trackView);
                     if (idx !== -1) trackViews.splice(idx, 1);
+                    // remove colour swatch from the menu for this track
+                    menu.removeTrackSwatch(trackId);
                 }
             }
         } catch (err) {
