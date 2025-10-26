@@ -14,6 +14,7 @@ export default class TrackManager {
         this.baseUrl = baseUrl?.replace(/\/$/, '') || '';
         this.pollInterval = pollInterval;
         this.logger = logger;
+        this.lastUpdate = new Date(0);
     }
 
     /**
@@ -130,8 +131,19 @@ export default class TrackManager {
             this.tracksPollTimer = null;
         }
         const poll = async () => {
-            this.logger.debug(`Polling tracks.json for updates...`);
+            this.logger.debug(`Polling last_update for latest update timestamp...`);
             try {
+                // Fetch last_update first and compare against this.lastUpdate
+                const lastUpdateResponse = await fetch(`${this.baseUrl}/last_update`);
+                if (!lastUpdateResponse.ok) throw new Error(`HTTP error! status: ${lastUpdateResponse.status}`);
+                const lastUpdateData = await lastUpdateResponse.text();
+                const lastUpdate = new Date(lastUpdateData);
+                if (lastUpdate <= this.lastUpdate) {
+                    return;
+                }
+                this.lastUpdate = lastUpdate;
+
+                this.logger.debug(`Polling for tracks.json`);
                 const response = await fetch(`${this.baseUrl}/tracks.json`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
