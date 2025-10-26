@@ -131,10 +131,10 @@ export default class TrackManager {
             this.tracksPollTimer = null;
         }
         const poll = async () => {
-            this.logger.debug(`Polling last_update for latest update timestamp...`);
+            this.logger.debug(`Polling last-tracks-update for latest update timestamp...`);
             try {
-                // Fetch last_update first and compare against this.lastUpdate
-                const lastUpdateResponse = await fetch(`${this.baseUrl}/last_update`);
+                // Fetch last-tracks-update first and compare against this.lastUpdate
+                const lastUpdateResponse = await fetch(`${this.baseUrl}/last-tracks-update`);
                 if (!lastUpdateResponse.ok) throw new Error(`HTTP error! status: ${lastUpdateResponse.status}`);
                 const lastUpdateData = await lastUpdateResponse.text();
                 const lastUpdate = new Date(lastUpdateData);
