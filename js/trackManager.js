@@ -133,17 +133,18 @@ export default class TrackManager {
         const poll = async () => {
             this.logger.debug(`Polling last-tracks-update for latest update timestamp...`);
             try {
-                // Fetch last-tracks-update first and compare against this.lastUpdate
-                const lastUpdateResponse = await fetch(`${this.baseUrl}/last-tracks-update`);
-                if (!lastUpdateResponse.ok) throw new Error(`HTTP error! status: ${lastUpdateResponse.status}`);
-                const lastUpdateData = await lastUpdateResponse.text();
-                const lastUpdate = new Date(lastUpdateData);
-                if (lastUpdate <= this.lastUpdate) {
+                // Fetch update.json to check for updates for updates before fetching tracks.json
+                const updateResponse = await fetch(`${this.baseUrl}/update.json`);
+                if (!updateResponse.ok) throw new Error(`HTTP error! status: ${updateResponse.status}`);
+                const updateData = await updateResponse.json();
+                const updateTimestamp = new Date(updateData.tracks?.edited);
+                if (updateTimestamp <= this.lastUpdate) {
+                    this.logger.debug(`No updates detected in update.json; skipping tracks.json fetch.`);
                     return;
                 }
-                this.lastUpdate = lastUpdate;
+                this.lastUpdate = updateTimestamp;
 
-                this.logger.debug(`Polling for tracks.json`);
+                this.logger.debug(`Updates detected; polling tracks.json for changes...`);
                 const response = await fetch(`${this.baseUrl}/tracks.json`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
