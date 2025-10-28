@@ -2,7 +2,7 @@
 export default class TrackManager {
     constructor(baseUrl, pollInterval, logger) {
         this.tracks = [];
-    // Map: trackId -> { points: Array, listeners: Set<Function> }
+        // Map: trackId -> { points: Array, listeners: Set<Function> }
         this.trackData = new Map();
         // timer for polling tracks.json
         this.tracksPollTimer = null;
@@ -13,8 +13,7 @@ export default class TrackManager {
         this.pollInterval = pollInterval;
         this.logger = logger;
         this.lastTracksUpdate = new Date(0);
-        this.liveTrack = null;
-        this.liveTrackListeners = new Set();
+        this.liveTrackId = null;
     }
 
     /**
@@ -28,7 +27,6 @@ export default class TrackManager {
         }
         // Unregister all listeners
         this.tracksListeners.clear();
-        this.liveTrackListeners.clear();
     }
 
     /**
@@ -119,47 +117,25 @@ export default class TrackManager {
                 if (updateTimestamp > this.lastTracksUpdate) {
                     const nextTracks = await this._fetchTracks(updateTimestamp);
 
-                    // For tracks with listeners, refresh if pointCount increased
-                    for (const meta of nextTracks) {
-                        const trackId = meta.id;
-                        const d = this.trackData.get(trackId);
-                        if (d && d.listeners && d.listeners.size > 0) {
-                            const newCount = meta.pointCount || 0;
-                            const oldCount = d.points?.length || 0;
-                            if (newCount > oldCount) {
-                                try {
-                                    const points = await this._fetchTrackPoints(trackId);
-                                    const newPoints = points.slice(oldCount);
-                                    d.points = points;
-                                    if (newPoints.length > 0) {
-                                        d.listeners.forEach(fn => {
-                                            try { fn(newPoints); } catch (e) { this.logger.error('Listener error:', e); }
-                                        });
-                                    }
-                                } catch (e) {
-                                    this.logger.error(`Failed to refresh points for ${trackId}:`, e);
-                                }
-                            }
-                        }
-                    }
+                    // First, notify tracks list listeners (separate concern)
+                    this._notifyTracksList(nextTracks);
 
-                    // Update tracks list and notify listeners
-                    this.tracks = nextTracks;
-                    this.tracksListeners.forEach(fn => {
-                        try { fn(this.tracks); } catch (e) { this.logger.error('Error in tracks listener:', e); }
-                    });
+                    // Then, refresh any per-track listeners where counts increased
+                    for (const meta of nextTracks) {
+                        await this._refreshIfIncreased(meta.id, meta.pointCount || 0);
+                    }
                 }
 
                 // Check for live track updates (if applicable)
-                const liveTrackId = updateData.liveTrack?.id;
-                if (liveTrackId && liveTrackId !== this.liveTrack?.id) {
-                    this.logger.info(`Live track updated to ${liveTrackId}`);
-                    this.liveTrack = {
-                        id: liveTrackId,
-                        pointCount: updateData.liveTrack.pointCount || 0
-                    };
-                    this._notifyLiveTrackListeners(this.liveTrack);
-                    // Optionally, notify listeners about live track change here
+                const liveTrackId = updateData.live?.id;
+                if (liveTrackId) {
+                    const liveCount = updateData.live.pointCount || 0;
+                    if (liveTrackId !== this.liveTrackId) {
+                        // Track identity changed; update metadata and proceed to refresh
+                        this.logger.info(`Live track updated to ${liveTrackId}`);
+                        this.liveTrackId = liveTrackId;
+                    }
+                    await this._refreshIfIncreased(liveTrackId, liveCount);
                 }
             } catch (err) {
                 this.logger.error('Error polling tracks.json:', err);
@@ -195,6 +171,7 @@ export default class TrackManager {
      * @returns {Promise<Array>}
      */
     async _fetchTrackPoints(trackId) {
+        this.logger.debug(`Fetching points for track ${trackId}...`);
         const response = await fetch(`${this.baseUrl}/${trackId}.json`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
@@ -202,15 +179,48 @@ export default class TrackManager {
     }
 
     /**
-     * Notify live track listeners of an update
-     * @param {Object} liveTrack - The live track metadata
+     * Notify tracks list listeners and update internal list cache
+     * @param {Array} nextTracks
      */
-    _notifyLiveTrackListeners(liveTrack) {
-        this.liveTrackListeners.forEach(listener => {
+    _notifyTracksList(nextTracks) {
+        this.tracks = nextTracks;
+        this._safeNotify(this.tracksListeners, this.tracks, 'tracks');
+    }
+
+    /**
+     * Refresh a specific track if the reported newCount exceeds cached length.
+     * Notifies that track's listeners with only the delta points.
+     * @param {string} trackId
+     * @param {number} newCount
+     */
+    async _refreshIfIncreased(trackId, newCount) {
+        const d = this.trackData.get(trackId);
+        if (!d || !d.listeners || d.listeners.size === 0) return;
+        const oldCount = d.points?.length || 0;
+        if (newCount <= oldCount) return;
+        try {
+            const points = await this._fetchTrackPoints(trackId);
+            const newPoints = points.slice(oldCount);
+            d.points = points;
+            if (newPoints.length > 0) this._safeNotify(d.listeners, newPoints, `track ${trackId}`);
+        } catch (e) {
+            this.logger.error(`Failed to refresh points for ${trackId}:`, e);
+        }
+    }
+
+    /**
+     * Safely notify a set of listeners with a payload. Errors are logged and do not stop the loop.
+     * @param {Set<Function>} listeners
+     * @param {*} payload
+     * @param {string} label - descriptive label for error logging context
+     */
+    _safeNotify(listeners, payload, label) {
+        if (!listeners || listeners.size === 0) return;
+        listeners.forEach(fn => {
             try {
-                listener(liveTrack);
-            } catch (error) {
-                this.logger.error('Error in live track listener:', error);
+                fn(payload);
+            } catch (e) {
+                this.logger.error(`Error in ${label} listener:`, e);
             }
         });
     }
