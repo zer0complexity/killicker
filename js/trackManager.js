@@ -2,7 +2,7 @@
 export default class TrackManager {
     constructor(baseUrl, pollInterval, logger) {
         this.tracks = [];
-        // Map: trackId -> { listeners: Set<Function>, points: Array }
+        // Map: trackId -> { points: Array, refCount: number }
         this.trackData = new Map();
         // timer for polling tracks.json
         this.tracksPollTimer = null;
@@ -13,51 +13,76 @@ export default class TrackManager {
         this.pollInterval = pollInterval;
         this.logger = logger;
         this.lastTracksUpdate = new Date(0);
+        this.liveTrack = null;
+        this.liveTrackListeners = new Set();
     }
 
     /**
-     * Register a listener for track points
-     * @param {string} trackId - The ID of the track to listen for
-     * @param {Function} listener - Function(points) to call with track points
-     * @returns {Function} Unregister function
+     * Clean up resources
      */
-    async registerListener(trackId, listener) {
+    destroy() {
+        this.trackData.clear();
+        if (this.tracksPollTimer) {
+            clearInterval(this.tracksPollTimer);
+            this.tracksPollTimer = null;
+        }
+        // Unregister all listeners
+        this.tracksListeners.clear();
+        this.liveTrackListeners.clear();
+    }
+
+    /**
+     * Get points for a specific track (fetches if not cached, increments reference count)
+     * @param {string} trackId - The ID of the track
+     * @returns {Promise<Array>} Promise that resolves to the track points array
+     */
+    async getTrackPoints(trackId) {
         let trackData = this.trackData.get(trackId);
+        
+        // If already cached, increment reference count and return
+        if (trackData) {
+            trackData.refCount++;
+            this.logger.debug(`Track ${trackId} refCount incremented to ${trackData.refCount}`);
+            return trackData.points;
+        }
+
+        // Otherwise fetch and cache with refCount = 1
+        this.logger.debug(`Fetching points for track ${trackId}...`);
+        try {
+            const response = await fetch(`${this.baseUrl}/${trackId}.json`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const points = data.points || [];
+            this.trackData.set(trackId, { points, refCount: 1 });
+            this.logger.debug(`Track ${trackId} cached with refCount = 1`);
+            return points;
+        } catch (error) {
+            this.logger.error(`Error fetching track points for ${trackId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Release a reference to track points (decrements reference count, removes cache if count reaches 0)
+     * @param {string} trackId - The ID of the track
+     */
+    releaseTrackPoints(trackId) {
+        const trackData = this.trackData.get(trackId);
         if (!trackData) {
-            trackData = {
-                listeners: new Set(),
-                points: []  // Store all points for the track
-            };
-            this.trackData.set(trackId, trackData);
-        }
-        trackData.listeners.add(listener);
-
-        // If we already have points for this track, invoke the listener immediately
-        if (trackData.points.length > 0) {
-            try {
-                listener(trackData.points);
-            } catch (error) {
-                this.logger.error(`Error invoking listener with existing points for track ${trackId}:`, error);
-            }
-        } else {
-            // If no points yet, fetch them immediately (tracks are static, one-time fetch)
-            try {
-                await this.fetchTrackPoints(trackId);
-            } catch (error) {
-                this.logger.error(`Error fetching initial points for track ${trackId}:`, error);
-            }
+            this.logger.warn(`Attempted to release track ${trackId} but it's not cached`);
+            return;
         }
 
-        return () => {
-            const data = this.trackData.get(trackId);
-            if (data) {
-                data.listeners.delete(listener);
-                if (data.listeners.size === 0) {
-                    this.logger.debug(`No more listeners for track ${trackId}, removing track data.`);
-                    this.trackData.delete(trackId);
-                }
-            }
-        };
+        trackData.refCount--;
+        this.logger.debug(`Track ${trackId} refCount decremented to ${trackData.refCount}`);
+
+        if (trackData.refCount <= 0) {
+            this.trackData.delete(trackId);
+            this.logger.debug(`Track ${trackId} removed from cache (refCount reached 0)`);
+        }
     }
 
     /**
@@ -86,33 +111,6 @@ export default class TrackManager {
     }
 
     /**
-     * Fetch points for a specific track (one-time, tracks are static)
-     * @param {string} trackId - The ID of the track to fetch
-     * @returns {Promise} Promise that resolves when points are fetched
-     */
-    async fetchTrackPoints(trackId) {
-        this.logger.debug(`Fetching points for track ${trackId}...`);
-        try {
-            const response = await fetch(`${this.baseUrl}/${trackId}.json`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.points && data.points.length > 0) {
-                const trackData = this.trackData.get(trackId);
-                if (trackData) {
-                    trackData.points = data.points;
-                    this.notifyListeners(trackId, data.points);
-                }
-            }
-        } catch (error) {
-            this.logger.error(`Error fetching track points for ${trackId}:`, error);
-            throw error;
-        }
-    }
-
-    /**
      * Start polling update.json and tracks.json to detect when new tracks are added
      */
     startPollingTracks() {
@@ -123,7 +121,7 @@ export default class TrackManager {
         const poll = async () => {
             this.logger.debug(`Polling update.json for latest tracks.json timestamp...`);
             try {
-                // Fetch update.json to check if tracks.json has been updated
+                // Fetch update.json to check for tracks.json and live track updates
                 const updateResponse = await fetch(`${this.baseUrl}/update.json`);
                 if (!updateResponse.ok) throw new Error(`HTTP error! status: ${updateResponse.status}`);
                 const updateData = await updateResponse.json();
@@ -138,6 +136,18 @@ export default class TrackManager {
                     this.tracksListeners.forEach(fn => {
                         try { fn(this.tracks); } catch (e) { this.logger.error('Error in tracks listener:', e); }
                     });
+                }
+
+                // Check for live track updates (if applicable)
+                const liveTrackId = updateData.liveTrack?.id;
+                if (liveTrackId && liveTrackId !== this.liveTrack?.id) {
+                    this.logger.info(`Live track updated to ${liveTrackId}`);
+                    this.liveTrack = {
+                        id: liveTrackId,
+                        pointCount: updateData.liveTrack.pointCount || 0
+                    };
+                    this.notifyLiveTrackListeners(this.liveTrack);
+                    // Optionally, notify listeners about live track change here
                 }
             } catch (err) {
                 this.logger.error('Error polling tracks.json:', err);
@@ -168,27 +178,16 @@ export default class TrackManager {
     }
 
     /**
-     * Clean up resources
+     * Notify live track listeners of an update
+     * @param {Object} liveTrack - The live track metadata
      */
-    destroy() {
-        this.trackData.clear();
-        if (this.tracksPollTimer) {
-            clearInterval(this.tracksPollTimer);
-            this.tracksPollTimer = null;
-        }
-    }
-
-    // Private method to notify listeners with track points
-    notifyListeners(trackId, points) {
-        const trackData = this.trackData.get(trackId);
-        if (trackData?.listeners) {
-            trackData.listeners.forEach(listener => {
-                try {
-                    listener(points);
-                } catch (error) {
-                    this.logger.error(`Error in track ${trackId} listener:`, error);
-                }
-            });
-        }
+    _notifyLiveTrackListeners(liveTrack) {
+        this.liveTrackListeners.forEach(listener => {
+            try {
+                listener(liveTrack);
+            } catch (error) {
+                this.logger.error('Error in live track listener:', error);
+            }
+        });
     }
 }
