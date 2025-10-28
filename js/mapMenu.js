@@ -68,6 +68,7 @@ export default class MapMenu {
 
         // Create a list item for each track
         tracks.forEach(track => {
+            if (track.pointCount === 0) return; // skip empty tracks
             const row = document.createElement('div');
             row.className = 'map-menu-row';
 
