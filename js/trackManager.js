@@ -2,14 +2,12 @@
 export default class TrackManager {
     constructor(baseUrl, pollInterval, logger) {
         this.tracks = [];
-        // Map: trackId -> { pointCount: number, listeners: Set<Function>, points: Array }
+        // Map: trackId -> { listeners: Set<Function>, points: Array }
         this.trackData = new Map();
         // timer for polling tracks.json
         this.tracksPollTimer = null;
         // listeners for full tracks list changes
         this.tracksListeners = new Set();
-        // cache of last known pointCount per track from tracks.json
-        this.tracksPointCounts = new Map(this.tracks.map(t => [t.id, t.pointCount || 0]));
         // base URL provided by main.js
         this.baseUrl = baseUrl?.replace(/\/$/, '') || '';
         this.pollInterval = pollInterval;
@@ -27,7 +25,6 @@ export default class TrackManager {
         let trackData = this.trackData.get(trackId);
         if (!trackData) {
             trackData = {
-                pointCount: 0,
                 listeners: new Set(),
                 points: []  // Store all points for the track
             };
@@ -103,14 +100,12 @@ export default class TrackManager {
             const data = await response.json();
             if (data.points) {
                 const trackData = this.trackData.get(trackId) || {
-                    pointCount: 0,
                     listeners: new Set(),
                     points: []
                 };
-                const newPoints = data.points.slice(trackData.pointCount);
+                const newPoints = data.points.slice(trackData.points.length);
 
                 if (newPoints.length > 0) {
-                    trackData.pointCount = data.points.length;
                     trackData.points = data.points; // Store all points
                     this.notifyListeners(trackId, newPoints);
                 }
@@ -131,7 +126,7 @@ export default class TrackManager {
             this.tracksPollTimer = null;
         }
         const poll = async () => {
-            this.logger.debug(`Polling last-tracks-update for latest update timestamp...`);
+            this.logger.debug(`Polling update.json for latest update tracks.json timestamp...`);
             try {
                 // Fetch update.json to check for updates for updates before fetching tracks.json
                 const updateResponse = await fetch(`${this.baseUrl}/update.json`);
@@ -139,7 +134,6 @@ export default class TrackManager {
                 const updateData = await updateResponse.json();
                 const updateTimestamp = new Date(updateData.tracks?.edited);
                 if (updateTimestamp <= this.lastUpdate) {
-                    this.logger.debug(`No updates detected in update.json; skipping tracks.json fetch.`);
                     return;
                 }
                 this.lastUpdate = updateTimestamp;
@@ -150,27 +144,19 @@ export default class TrackManager {
                 const data = await response.json();
                 const nextTracks = data.tracks || [];
 
-                // Compare pointCounts to detect changes
-                const nextCounts = new Map(nextTracks.map(t => [t.id, t.pointCount || 0]));
-
-                // Notify point listeners only when pointCount changes
-                for (const [trackId, newCount] of nextCounts.entries()) {
-                    const oldCount = this.tracksPointCounts.get(trackId) ?? 0;
-                    if (newCount > oldCount) {
-                        // Only fetch if there are listeners for this track
-                        const td = this.trackData.get(trackId);
-                        if (td && td.listeners && td.listeners.size > 0) {
-                            await this.fetchTrackPoints(trackId);
-                        } else {
-                            // update cached count even if no listeners; points will be fetched on first registration
-                            this.tracksPointCounts.set(trackId, newCount);
-                        }
+                // Notify point listeners only when pointCount increases compared to stored points length
+                for (const meta of nextTracks) {
+                    const trackId = meta.id;
+                    const newCount = meta.pointCount || 0;
+                    const td = this.trackData.get(trackId);
+                    const oldCount = td?.points?.length || 0;
+                    if (td && td.listeners && td.listeners.size > 0 && newCount > oldCount) {
+                        await this.fetchTrackPoints(trackId);
                     }
                 }
 
                 // Update tracks list and cached counts
                 this.tracks = nextTracks;
-                this.tracksPointCounts = nextCounts;
                 this.tracksListeners.forEach(fn => {
                     try { fn(this.tracks); } catch (e) { this.logger.error('Error in tracks listener:', e); }
                 });
@@ -199,10 +185,6 @@ export default class TrackManager {
     notifyListeners(trackId, newPoints) {
         const trackData = this.trackData.get(trackId);
         if (trackData?.listeners) {
-            // Update cached pointCount from points array length if greater
-            if (Array.isArray(trackData.points)) {
-                this.tracksPointCounts.set(trackId, trackData.points.length);
-            }
             trackData.listeners.forEach(listener => {
                 try {
                     listener(newPoints);
