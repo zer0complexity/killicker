@@ -8,6 +8,8 @@ export default class TrackManager {
         this.tracksPollTimer = null;
         // listeners for full tracks list changes
         this.tracksListeners = new Set();
+        // listeners for live track changes
+        this.liveTrackListeners = new Set();
         // base URL provided by main.js
         this.baseUrl = baseUrl?.replace(/\/$/, '') || '';
         this.pollInterval = pollInterval;
@@ -27,6 +29,7 @@ export default class TrackManager {
         }
         // Unregister all listeners
         this.tracksListeners.clear();
+        this.liveTrackListeners.clear();
     }
 
     /**
@@ -96,6 +99,39 @@ export default class TrackManager {
     }
 
     /**
+     * Check if there is currently a live track
+     * @returns {boolean}
+     */
+    hasLiveTrack() {
+        return this.liveTrackId !== null;
+    }
+
+    /**
+     * Get the current live track ID
+     * @returns {string|null}
+     */
+    getLiveTrackId() {
+        return this.liveTrackId;
+    }
+
+    /**
+     * Register a listener for live track changes
+     * @param {Function} listener - Function(liveTrackId: string|null) called when live track changes
+     * @returns {Function} Unregister function
+     */
+    registerLiveTrackListener(listener) {
+        this.liveTrackListeners.add(listener);
+        // call immediately with current state
+        try {
+            listener(this.liveTrackId);
+        }
+        catch (e) {
+            this.logger.error('live track listener immediate call failed', e);
+        }
+        return () => { this.liveTrackListeners.delete(listener); };
+    }
+
+    /**
      * Start polling update.json and tracks.json to detect when new tracks are added
      * and when track point counts increase for tracks with listeners.
      */
@@ -127,14 +163,19 @@ export default class TrackManager {
                 }
 
                 // Check for live track updates (if applicable)
-                const liveTrackId = updateData.live?.id;
+                const liveTrackId = updateData.live?.id || null;
+                if (liveTrackId !== this.liveTrackId) {
+                    // Track identity changed; update metadata and notify listeners
+                    if (liveTrackId) {
+                        this.logger.info(`Live track updated to ${liveTrackId}`);
+                    } else {
+                        this.logger.info(`Live track cleared`);
+                    }
+                    this.liveTrackId = liveTrackId;
+                    this._safeNotify(this.liveTrackListeners, this.liveTrackId, 'live track');
+                }
                 if (liveTrackId) {
                     const liveCount = updateData.live.pointCount || 0;
-                    if (liveTrackId !== this.liveTrackId) {
-                        // Track identity changed; update metadata and proceed to refresh
-                        this.logger.info(`Live track updated to ${liveTrackId}`);
-                        this.liveTrackId = liveTrackId;
-                    }
                     await this._refreshIfIncreased(liveTrackId, liveCount);
                 }
             } catch (err) {

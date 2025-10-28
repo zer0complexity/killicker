@@ -103,33 +103,50 @@ initMap().then(async (m) => {
         "#1aff4c"
     ];
     // Create the map menu UI and populate with tracks
-    const menu = new MapMenu(map, trackManager.getTracks(), async (trackId, checked) => {
-        try {
-            if (checked) {
-                // create TrackView if not already active
-                if (!activeTrackViews.has(trackId)) {
-                    const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
-                    const trackColour = trackColours[idx % trackColours.length];
-                    await createTrackView(trackId, trackColour);
-                    // Update the menu swatch to reflect the colour used for this TrackView
-                    menu.setTrackSwatch(trackId, trackColour);
+    const menu = new MapMenu(
+        map, 
+        trackManager.getTracks(), 
+        async (trackId, checked) => {
+            try {
+                if (checked) {
+                    // create TrackView if not already active
+                    if (!activeTrackViews.has(trackId)) {
+                        const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
+                        const trackColour = trackColours[idx % trackColours.length];
+                        await createTrackView(trackId, trackColour);
+                        // Update the menu swatch to reflect the colour used for this TrackView
+                        menu.setTrackSwatch(trackId, trackColour);
+                    }
+                } else {
+                    // unregister and destroy if active
+                    const entry = activeTrackViews.get(trackId);
+                    if (entry) {
+                        try { entry.unregister(); } catch (e) { /* ignore */ }
+                        try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
+                        activeTrackViews.delete(trackId);
+                        // remove colour swatch from the menu for this track
+                        menu.removeTrackSwatch(trackId);
+                    }
                 }
-            } else {
-                // unregister and destroy if active
-                const entry = activeTrackViews.get(trackId);
-                if (entry) {
-                    try { entry.unregister(); } catch (e) { /* ignore */ }
-                    try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
-                    activeTrackViews.delete(trackId);
-                    // remove colour swatch from the menu for this track
-                    menu.removeTrackSwatch(trackId);
-                }
+            } catch (err) {
+                console.error('Error handling menu change:', err);
             }
-        } catch (err) {
-            console.error('Error handling menu change:', err);
+        },
+        {
+            hasLiveTrack: trackManager.hasLiveTrack(),
+            liveTrackId: trackManager.getLiveTrackId(),
+            onLiveTrackFollowChange: (checked) => {
+                console.log('Follow live track:', checked);
+                // TODO: Implement live track following logic
+            }
         }
-    });
+    );
 
     // Keep the menu in sync with tracks.json changes
     trackManager.registerTracksListener(menu.setTracks.bind(menu));
+
+    // Keep the menu in sync with live track changes
+    trackManager.registerLiveTrackListener((liveTrackId) => {
+        menu.setLiveTrack(liveTrackId !== null, liveTrackId);
+    });
 });

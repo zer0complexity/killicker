@@ -1,42 +1,66 @@
-// MapMenu: overlay control that shows a hamburger menu with checkboxes per track
+// MapMenu: overlay control with two collapsible sections - Live Track and Log
 export default class MapMenu {
     /**
      * @param {google.maps.Map} map
      * @param {Array} tracks - Array of track metadata objects {id, pointCount}
      * @param {Function} onChange - Callback (trackId, checked) when checkbox toggled
+     * @param {Object} options - {hasLiveTrack: boolean, liveTrackId: string|null}
      */
-    constructor(map, tracks = [], onChange = () => {}) {
+    constructor(map, tracks = [], onChange = () => {}, options = {}) {
         this.map = map;
         this.onChange = onChange;
+        this.onLiveTrackFollowChange = options.onLiveTrackFollowChange || (() => {});
         this.container = document.createElement('div');
         this.container.className = 'map-menu-container';
         this.swatchColours = new Map();
+        this.hasLiveTrack = options.hasLiveTrack || false;
+        this.liveTrackId = options.liveTrackId || null;
 
-        // Header / hamburger button
+        // Main header / hamburger button
         this.header = document.createElement('div');
         this.header.className = 'map-menu-header';
         this.hamburger = document.createElement('div');
         this.hamburger.className = 'map-menu-hamburger';
-        this.hamburger.innerHTML = '&#9776;'; // simple hamburger
-        this.title = document.createElement('div');
-        this.title.className = 'map-menu-title';
-        this.title.textContent = 'Tracks';
+        this.hamburger.innerHTML = '&#9776;';
         this.header.appendChild(this.hamburger);
-        this.header.appendChild(this.title);
         this.container.appendChild(this.header);
 
-        // Body (checkbox list)
+        // Body containing both sections
         this.body = document.createElement('div');
         this.body.className = 'map-menu-body';
-        this.controls = document.createElement('div');
-        this.controls.className = 'map-menu-controls';
-        this.list = document.createElement('div');
-        this.list.className = 'map-menu-list';
-        this.body.appendChild(this.controls);
-        this.body.appendChild(this.list);
         this.container.appendChild(this.body);
 
-        // Toggle body visibility when header clicked
+        // Live Track Section
+        this.liveSection = this._createSection('Live Track', 'live-track');
+        this.liveFollowCheckbox = document.createElement('input');
+        this.liveFollowCheckbox.type = 'checkbox';
+        this.liveFollowCheckbox.className = 'map-menu-checkbox';
+        this.liveFollowLabel = document.createElement('label');
+        this.liveFollowLabel.textContent = 'Follow live track';
+        this.liveFollowLabel.className = 'map-menu-label';
+        this.liveFollowLabel.addEventListener('click', () => this.liveFollowCheckbox.click());
+        this.liveFollowCheckbox.addEventListener('change', (ev) => {
+            try {
+                this.onLiveTrackFollowChange(ev.target.checked);
+            } catch (err) {
+                console.error('Error in live track follow handler:', err);
+            }
+        });
+        const liveRow = document.createElement('div');
+        liveRow.className = 'map-menu-row';
+        liveRow.appendChild(this.liveFollowCheckbox);
+        liveRow.appendChild(this.liveFollowLabel);
+        this.liveSection.content.appendChild(liveRow);
+        this.body.appendChild(this.liveSection.container);
+
+        // Log Section
+        this.logSection = this._createSection('Log', 'log');
+        this.list = document.createElement('div');
+        this.list.className = 'map-menu-list';
+        this.logSection.content.appendChild(this.list);
+        this.body.appendChild(this.logSection.container);
+
+        // Toggle main body visibility when header clicked
         this.header.addEventListener('click', () => {
             this.container.classList.toggle('open');
         });
@@ -46,6 +70,105 @@ export default class MapMenu {
 
         this.checkboxes = new Map();
         this.setTracks(tracks);
+        this._updateLiveTrackSection();
+        
+        // Default: open menu on load
+        this.container.classList.add('open');
+    }
+
+    /**
+     * Create a collapsible section with header and content
+     * @param {string} title
+     * @param {string} id
+     * @returns {Object} {container, header, content, isOpen}
+     */
+    _createSection(title, id) {
+        const container = document.createElement('div');
+        container.className = 'map-menu-section';
+        container.dataset.sectionId = id;
+
+        const header = document.createElement('div');
+        header.className = 'map-menu-section-header';
+        const arrow = document.createElement('span');
+        arrow.className = 'map-menu-section-arrow';
+        arrow.textContent = '▶';
+        const titleEl = document.createElement('span');
+        titleEl.textContent = title;
+        header.appendChild(arrow);
+        header.appendChild(titleEl);
+        
+        const content = document.createElement('div');
+        content.className = 'map-menu-section-content';
+
+        const section = {
+            container,
+            header,
+            content,
+            arrow,
+            isOpen: false
+        };
+
+        header.addEventListener('click', () => this._toggleSection(section));
+        
+        container.appendChild(header);
+        container.appendChild(content);
+
+        return section;
+    }
+
+    /**
+     * Toggle a section open/closed
+     * @param {Object} section
+     */
+    _toggleSection(section) {
+        section.isOpen = !section.isOpen;
+        if (section.isOpen) {
+            section.container.classList.add('open');
+            section.arrow.textContent = '▼';
+        } else {
+            section.container.classList.remove('open');
+            section.arrow.textContent = '▶';
+        }
+    }
+
+    /**
+     * Update the live track section state based on hasLiveTrack
+     */
+    _updateLiveTrackSection() {
+        if (this.hasLiveTrack) {
+            this.liveSection.container.classList.remove('disabled');
+            // If live track exists, open live section and check "Follow live track"
+            if (!this.liveSection.isOpen) {
+                this._toggleSection(this.liveSection);
+            }
+            this.liveFollowCheckbox.checked = true;
+            // Close log section when live track is active
+            if (this.logSection.isOpen) {
+                this._toggleSection(this.logSection);
+            }
+        } else {
+            this.liveSection.container.classList.add('disabled');
+            // Collapse live section when disabled
+            if (this.liveSection.isOpen) {
+                this._toggleSection(this.liveSection);
+            }
+            this.liveFollowCheckbox.checked = false;
+            // Open log section when no live track
+            if (!this.logSection.isOpen) {
+                this._toggleSection(this.logSection);
+            }
+        }
+    }
+
+    /**
+     * Set whether there is a live track
+     * @param {boolean} hasLiveTrack
+     * @param {string|null} liveTrackId
+     */
+    setLiveTrack(hasLiveTrack, liveTrackId = null) {
+        this.hasLiveTrack = hasLiveTrack;
+        this.liveTrackId = liveTrackId;
+        this._updateLiveTrackSection();
     }
 
     /**
@@ -63,7 +186,6 @@ export default class MapMenu {
 
         // Clear existing
         this.list.innerHTML = '';
-        this.controls.innerHTML = '';
         this.checkboxes.clear();
 
         // Create a list item for each track
