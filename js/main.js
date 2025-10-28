@@ -7,7 +7,6 @@ import TrackView from './trackView.js';
 // module-level singletons (created in main.js)
 let map = null;
 let trackManager = null;
-const trackViews = []; // Array to keep TrackView instances (for updateMarkers)
 const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
 
 /**
@@ -31,8 +30,6 @@ async function createTrackView(trackId, trackColour) {
         tv.processPoints(points);
     });
 
-    // Add to the array of TrackViews
-    trackViews.push(tv);
     // Track active by trackId so we can destroy later
     activeTrackViews.set(trackId, { trackView: tv, unregister });
 
@@ -81,7 +78,7 @@ initMap().then(async (m) => {
     map = m;
     map.addListener('idle', () => {
         // Update marker visibility for all TrackViews
-        trackViews.forEach(tv => tv.updateMarkers());
+        activeTrackViews.forEach(entry => entry.trackView.updateMarkers());
     });
 
     // Initialize TrackManager and create initial TrackView
@@ -125,9 +122,6 @@ initMap().then(async (m) => {
                     try { entry.unregister(); } catch (e) { /* ignore */ }
                     try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
                     activeTrackViews.delete(trackId);
-                    // also remove from trackViews array
-                    const idx = trackViews.findIndex(tv => tv === entry.trackView);
-                    if (idx !== -1) trackViews.splice(idx, 1);
                     // remove colour swatch from the menu for this track
                     menu.removeTrackSwatch(trackId);
                 }
