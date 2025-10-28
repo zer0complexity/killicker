@@ -139,23 +139,17 @@ export default class TrackView {
         // Load arrow SVG once
         const arrowSvg = await TrackView.loadArrowSvg(this.trackColour);
 
-        const trackLength = this.track.getPath().length;
-        if (points.length > trackLength) {
-            points.slice(trackLength, points.length).forEach(element => {
-                if (this.markers.length > 0 && this.prevPointData) {
-                    this.markers.at(-1).setMap(null);  // Remove the last transparent marker
-                    this.markers.pop();
-                    this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
-                }
-                this.addPointToTrack(element.position, this.markers.length === 0);
-                this.prevPointData = element;
-                if (this.markers.length === 0) {
-                    this.markers.push(this.placeMarker(element, arrowSvg));
-                } else {
-                    this.markers.push(this.placeMarker(element, arrowSvg));
-                }
-            });
-        }
+        // Treat incoming points as a delta to append
+        points.forEach(element => {
+            if (this.markers.length > 0 && this.prevPointData) {
+                this.markers.at(-1).setMap(null);  // Remove the last transparent marker
+                this.markers.pop();
+                this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
+            }
+            this.addPointToTrack(element.position, this.markers.length === 0);
+            this.prevPointData = element;
+            this.markers.push(this.placeMarker(element, arrowSvg));
+        });
     }
 
     updateMarkers() {

@@ -7,13 +7,13 @@ import TrackView from './trackView.js';
 // module-level singletons (created in main.js)
 let map = null;
 let trackManager = null;
-const activeTrackViews = new Map(); // trackId -> trackView
+const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
 
 /**
- * Factory to create a TrackView for a specific track.
+ * Factory to create and register a TrackView for a specific track.
  * @param {string} trackId - ID of the track to display
  * @param {string} trackColour - Color for the track
- * @returns {Promise<Object>} Promise of object containing trackView and trackId
+ * @returns {Promise<Object>} Promise of { trackView, trackId, unregister }
  */
 async function createTrackView(trackId, trackColour) {
     if (!map) {
@@ -25,14 +25,14 @@ async function createTrackView(trackId, trackColour) {
 
     const tv = new TrackView(map, trackColour);
 
-    // Get track points from TrackManager (fetches if not cached)
-    const points = await trackManager.getTrackPoints(trackId);
-    tv.processPoints(points);
+    // Register a listener so TrackView receives initial and subsequent updates
+    const unregister = await trackManager.registerListener(trackId, (points) => {
+        tv.processPoints(points);
+    });
 
-    // Store the TrackView
-    activeTrackViews.set(trackId, tv);
+    activeTrackViews.set(trackId, { trackView: tv, unregister });
 
-    return { trackView: tv, trackId };
+    return { trackView: tv, trackId, unregister };
 }
 
 async function initMap() {
@@ -77,7 +77,7 @@ initMap().then(async (m) => {
     map = m;
     map.addListener('idle', () => {
         // Update marker visibility for all TrackViews
-        activeTrackViews.forEach(tv => tv.updateMarkers());
+        activeTrackViews.forEach(entry => entry.trackView.updateMarkers());
     });
 
     // Initialize TrackManager and create initial TrackView
@@ -115,13 +115,12 @@ initMap().then(async (m) => {
                     menu.setTrackSwatch(trackId, trackColour);
                 }
             } else {
-                // destroy if active
-                const tv = activeTrackViews.get(trackId);
-                if (tv) {
-                    try { tv.destroy(); } catch (e) { /* ignore */ }
+                // unregister and destroy if active
+                const entry = activeTrackViews.get(trackId);
+                if (entry) {
+                    try { entry.unregister(); } catch (e) { /* ignore */ }
+                    try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
                     activeTrackViews.delete(trackId);
-                    // Release track points reference in TrackManager
-                    trackManager.releaseTrackPoints(trackId);
                     // remove colour swatch from the menu for this track
                     menu.removeTrackSwatch(trackId);
                 }
