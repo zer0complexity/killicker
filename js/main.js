@@ -16,23 +16,12 @@ const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
  * @param {string} options.trackId - ID of the track to display (if not provided, uses latest track)
  * @returns {Promise<Object>} Promise of object containing trackView and unregister function
  */
-async function createTrackView(options = {}) {
+async function createTrackView(trackId, trackColour) {
     if (!map) {
         throw new Error('createTrackView called before map initialization; call after initMap completes');
     }
     if (!trackManager) {
         throw new Error('createTrackView called before TrackManager initialization');
-    }
-
-    let { trackId, trackColour } = options;
-
-    // If no trackId provided, use the latest track
-    if (!trackId) {
-        const tracks = trackManager.getTracks();
-        if (tracks.length === 0) {
-            throw new Error('No tracks available');
-        }
-        trackId = tracks[tracks.length - 1].id;
     }
 
     const tv = new TrackView(map, trackColour);
@@ -125,7 +114,7 @@ initMap().then(async (m) => {
                 if (!activeTrackViews.has(trackId)) {
                     const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
                     const trackColour = trackColours[idx % trackColours.length];
-                    await createTrackView({ trackId, trackColour });
+                    await createTrackView(trackId, trackColour);
                     // Update the menu swatch to reflect the colour used for this TrackView
                     menu.setTrackSwatch(trackId, trackColour);
                 }
