@@ -74,7 +74,7 @@ export default class MapMenu {
         this.checkboxes = new Map();
         this.setTracks(tracks);
         this._updateLiveTrackSection();
-        
+
         // Default: open menu on load
         this.container.classList.add('open');
     }
@@ -99,7 +99,7 @@ export default class MapMenu {
         titleEl.textContent = title;
         header.appendChild(arrow);
         header.appendChild(titleEl);
-        
+
         const content = document.createElement('div');
         content.className = 'map-menu-section-content';
 
@@ -112,7 +112,7 @@ export default class MapMenu {
         };
 
         header.addEventListener('click', () => this._toggleSection(section));
-        
+
         container.appendChild(header);
         container.appendChild(content);
 
@@ -144,7 +144,16 @@ export default class MapMenu {
             if (!this.liveSection.isOpen) {
                 this._toggleSection(this.liveSection);
             }
+            const wasChecked = this.liveFollowCheckbox.checked;
             this.liveFollowCheckbox.checked = true;
+            // Trigger the callback if the state changed
+            if (!wasChecked) {
+                try {
+                    this.onLiveTrackFollowChange(true);
+                } catch (err) {
+                    console.error('Error in live track follow handler:', err);
+                }
+            }
             // Close log section when live track is active
             if (this.logSection.isOpen) {
                 this._toggleSection(this.logSection);
@@ -155,7 +164,16 @@ export default class MapMenu {
             if (this.liveSection.isOpen) {
                 this._toggleSection(this.liveSection);
             }
+            const wasChecked = this.liveFollowCheckbox.checked;
             this.liveFollowCheckbox.checked = false;
+            // Trigger the callback if the state changed
+            if (wasChecked) {
+                try {
+                    this.onLiveTrackFollowChange(false);
+                } catch (err) {
+                    console.error('Error in live track follow handler:', err);
+                }
+            }
             // Open log section when no live track
             if (!this.logSection.isOpen) {
                 this._toggleSection(this.logSection);
@@ -246,11 +264,17 @@ export default class MapMenu {
      */
     setTrackSwatch(trackId, colour) {
         this.swatchColours.set(trackId, colour);
+        // Try to find a normal log row first
+        let label = null;
         const input = this.checkboxes.get(trackId);
-        if (!input) return;
-        const row = input.parentElement;
-        if (!row) return;
-        const label = row.querySelector('.map-menu-label');
+        if (input && input.parentElement) {
+            const row = input.parentElement;
+            label = row.querySelector('.map-menu-label');
+        }
+        // If not found in log rows, and this is the current live track, use the live track label
+        if (!label && this.liveTrackId && trackId === this.liveTrackId) {
+            label = this.liveFollowLabel;
+        }
         if (!label) return;
         let swatch = label.querySelector('.map-menu-swatch');
         if (!swatch) {
@@ -269,11 +293,17 @@ export default class MapMenu {
     removeTrackSwatch(trackId) {
         // Clear stored swatch colour so it won't be reapplied
         this.swatchColours.delete(trackId);
+        // Try to find a normal log row first
+        let label = null;
         const input = this.checkboxes.get(trackId);
-        if (!input) return;
-        const row = input.parentElement;
-        if (!row) return;
-        const label = row.querySelector('.map-menu-label');
+        if (input && input.parentElement) {
+            const row = input.parentElement;
+            label = row.querySelector('.map-menu-label');
+        }
+        // If not found in log rows, and this is the current live track, use the live track label
+        if (!label && this.liveTrackId && trackId === this.liveTrackId) {
+            label = this.liveFollowLabel;
+        }
         if (!label) return;
         const swatch = label.querySelector('.map-menu-swatch');
         if (swatch && swatch.parentElement === label) {

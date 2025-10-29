@@ -135,9 +135,32 @@ initMap().then(async (m) => {
         {
             hasLiveTrack: trackManager.hasLiveTrack(),
             liveTrackId: trackManager.getLiveTrackId(),
-            onLiveTrackFollowChange: (checked) => {
-                console.log('Follow live track:', checked);
-                // TODO: Implement live track following logic
+            onLiveTrackFollowChange: async (checked) => {
+                const liveTrackId = trackManager.getLiveTrackId();
+                if (!liveTrackId) return;
+
+                try {
+                    if (checked) {
+                        // Create TrackView for live track if not already active
+                        if (!activeTrackViews.has(liveTrackId)) {
+                            await createTrackView(liveTrackId, liveTrackColour);
+                            // Update the menu swatch for the live track
+                            menu.setTrackSwatch(liveTrackId, liveTrackColour);
+                        }
+                    } else {
+                        // Unregister and destroy live track TrackView
+                        const entry = activeTrackViews.get(liveTrackId);
+                        if (entry) {
+                            try { entry.unregister(); } catch (e) { /* ignore */ }
+                            try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
+                            activeTrackViews.delete(liveTrackId);
+                            // Remove colour swatch from the menu
+                            menu.removeTrackSwatch(liveTrackId);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error handling live track follow change:', err);
+                }
             }
         }
     );

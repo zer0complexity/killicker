@@ -91,7 +91,7 @@ class DataGetter:
             client.close()
             return result
 
-    def update_json_file(self, new_data):
+    def update_json_file(self, new_data, update_tracks_index=True):
         """
         Update the JSON file with new data.
 
@@ -111,10 +111,11 @@ class DataGetter:
                 json.dump(existing_data, f, indent=4)
                 f.write('\n')  # Ensure file ends with a newline
 
-            # After updating the file, update tracks.json index
-            track_id = os.path.splitext(os.path.basename(self.json_file_path))[0]
-            point_count = len(existing_data.get("points", []))
-            self.update_tracks_index(track_id, point_count)
+            if update_tracks_index:
+                # After updating the file, update tracks.json index
+                track_id = os.path.splitext(os.path.basename(self.json_file_path))[0]
+                point_count = len(existing_data.get("points", []))
+                self.update_tracks_index(track_id, point_count)
 
         except Exception as e:
             raise Exception(f"Error updating JSON file: {str(e)}")
@@ -194,6 +195,31 @@ class DataGetter:
 
         except Exception as e:
             raise Exception(f"Error updating tracks.json: {str(e)}")
+
+
+    def update_update_json_file(self, track_id, point_count):
+        """
+        Update update.json file with new data.
+        """
+        try:
+            update_path = os.path.join(os.path.dirname(self.json_file_path), 'update.json')
+            if os.path.exists(update_path):
+                with open(update_path, 'r') as f:
+                    existing_data = json.load(f)
+            else:
+                existing_data = { "points": [] }
+
+            existing_data["live"] = {
+                "id": track_id,
+                "pointCount": point_count
+            }
+
+            with open(update_path, 'w') as f:
+                json.dump(existing_data, f, indent=4)
+                f.write('\n')  # Ensure file ends with a newline
+
+        except Exception as e:
+            raise Exception(f"Error updating JSON file: {str(e)}")
 
 
 
@@ -293,7 +319,10 @@ if __name__ == "__main__":
             print(f"Skipping data retrieval for {day} as per ignore list.")
             continue
 
-        fname = day.strftime("%Y%m%d") + "-0500.json"
+        # DEBUG #
+        fname = day.strftime("%Y10%d") + "-0500.json"
+        # DEBUG #
+        # fname = day.strftime("%Y%m%d") + "-0500.json"
 
         getter = DataGetter(
             influx_url=args.influx_url,
@@ -315,10 +344,14 @@ if __name__ == "__main__":
 
             if args.single_point_interval is not None:
                 # Update one point at a time
+                # This is a live track, so we need to add a 0 point track entry to tracks.json
+                track_id = os.path.splitext(os.path.basename(fname))[0]
+                getter.update_tracks_index(track_id=track_id, point_count=0)
                 count = 0
                 for point in points:
-                    getter.update_json_file([point])
                     count += 1
+                    getter.update_json_file([point], update_tracks_index=False)
+                    getter.update_update_json_file(track_id, count)
                     if args.commit_push:
                         getter.commit_and_push(commit_message=f"Added data point at {point['timestamp']}")
                         print(f"{count}/{len(points)}: Pushed data point at {point['timestamp']}", end='')
