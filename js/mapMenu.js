@@ -50,7 +50,10 @@ export default class MapMenu {
         liveRow.className = 'map-menu-row';
         liveRow.appendChild(this.liveFollowCheckbox);
         liveRow.appendChild(this.liveFollowLabel);
-        this.liveSection.content.appendChild(liveRow);
+        const liveContent = document.createElement('div');
+        liveContent.className = 'map-menu-list';
+        liveContent.appendChild(liveRow);
+        this.liveSection.content.appendChild(liveContent);
         this.body.appendChild(this.liveSection.container);
 
         // Log Section
