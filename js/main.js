@@ -37,8 +37,9 @@ async function createTrackView(trackId, trackColour) {
 
 async function initMap() {
     // Request libraries when needed, not in the script tag.
-    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    // Load required Google Maps libraries (symbols are used via global google namespace)
+    await google.maps.importLibrary("maps");
+    await google.maps.importLibrary("marker");
 
     const position = { lat: 44.74979194815116, lng: -79.8512010048997 };    // Wye Heritage Marina
 
@@ -53,22 +54,21 @@ async function initMap() {
 }
 
 async function initTrackManager() {
-    let dataUrl = '';
-    let pollInterval = 60000; // 60 seconds
-    let logger = null;
-    if (window.location.href.includes('https://zer0complexity.github.io')) {
-        dataUrl = 'https://zer0complexity.github.io/killicker-data';
-        logger = new Logger(Logger.ENVIRONMENTS.PROD, "TrackManager");
-    } else {
-        dataUrl = 'killicker-data';
-        pollInterval = 5000; // 5 seconds
-        logger = new Logger(Logger.ENVIRONMENTS.DEV, "TrackManager");
-    }
-
+    const { dataUrl, pollInterval, logger } = getRuntimeConfig();
     trackManager = new TrackManager(dataUrl, pollInterval, logger);
 
     // Start polling tracks.json globally
     trackManager.startPollingTracks();
+}
+
+// Small helper to configure runtime (data URL, poll interval, logger)
+function getRuntimeConfig() {
+    const isProd = window.location.href.includes('https://zer0complexity.github.io');
+    return {
+        dataUrl: isProd ? 'https://zer0complexity.github.io/killicker-data' : 'killicker-data',
+        pollInterval: isProd ? 60000 : 5000,
+        logger: new Logger(isProd ? Logger.ENVIRONMENTS.PROD : Logger.ENVIRONMENTS.DEV, 'TrackManager'),
+    };
 }
 
 // Initialize the application
@@ -102,32 +102,42 @@ initMap().then(async (m) => {
         "#5aff1a",
         "#1aff4c"
     ];
+    const trackColourCache = new Map(); // trackId -> colour
+
+    // Helper: compute or return cached colour for a track
+    const getTrackColour = (trackId) => {
+        if (trackId === trackManager.getLiveTrackId()) return liveTrackColour;
+        if (trackColourCache.has(trackId)) return trackColourCache.get(trackId);
+        const idx = trackManager.getTracks().findIndex(t => t.id === trackId);
+        const colour = trackColours[(idx >= 0 ? idx : 0) % trackColours.length];
+        trackColourCache.set(trackId, colour);
+        return colour;
+    };
+
+    // Helpers to activate/deactivate a track view and keep menu swatch in sync
+    const activateTrack = async (trackId, explicitColour) => {
+        if (!trackId || activeTrackViews.has(trackId)) return;
+        const colour = explicitColour || getTrackColour(trackId);
+        await createTrackView(trackId, colour);
+        menu.setTrackSwatch(trackId, colour);
+    };
+    const deactivateTrack = (trackId) => {
+        if (!trackId) return;
+        const entry = activeTrackViews.get(trackId);
+        if (!entry) return;
+        entry.unregister();
+        entry.trackView.destroy();
+        activeTrackViews.delete(trackId);
+        menu.removeTrackSwatch(trackId);
+    };
     // Create the map menu UI and populate with tracks
     const menu = new MapMenu(
         map, 
         trackManager.getTracks(), 
         async (trackId, checked) => {
             try {
-                if (checked) {
-                    // create TrackView if not already active
-                    if (!activeTrackViews.has(trackId)) {
-                        const idx = trackManager.getTracks().findIndex(track => track.id === trackId);
-                        const trackColour = trackColours[idx % trackColours.length];
-                        await createTrackView(trackId, trackColour);
-                        // Update the menu swatch to reflect the colour used for this TrackView
-                        menu.setTrackSwatch(trackId, trackColour);
-                    }
-                } else {
-                    // unregister and destroy if active
-                    const entry = activeTrackViews.get(trackId);
-                    if (entry) {
-                        try { entry.unregister(); } catch (e) { /* ignore */ }
-                        try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
-                        activeTrackViews.delete(trackId);
-                        // remove colour swatch from the menu for this track
-                        menu.removeTrackSwatch(trackId);
-                    }
-                }
+                if (checked) await activateTrack(trackId);
+                else deactivateTrack(trackId);
             } catch (err) {
                 console.error('Error handling menu change:', err);
             }
@@ -138,26 +148,9 @@ initMap().then(async (m) => {
             onLiveTrackFollowChange: async (checked) => {
                 const liveTrackId = trackManager.getLiveTrackId();
                 if (!liveTrackId) return;
-
                 try {
-                    if (checked) {
-                        // Create TrackView for live track if not already active
-                        if (!activeTrackViews.has(liveTrackId)) {
-                            await createTrackView(liveTrackId, liveTrackColour);
-                            // Update the menu swatch for the live track
-                            menu.setTrackSwatch(liveTrackId, liveTrackColour);
-                        }
-                    } else {
-                        // Unregister and destroy live track TrackView
-                        const entry = activeTrackViews.get(liveTrackId);
-                        if (entry) {
-                            try { entry.unregister(); } catch (e) { /* ignore */ }
-                            try { entry.trackView.destroy(); } catch (e) { /* ignore */ }
-                            activeTrackViews.delete(liveTrackId);
-                            // Remove colour swatch from the menu
-                            menu.removeTrackSwatch(liveTrackId);
-                        }
-                    }
+                    if (checked) await activateTrack(liveTrackId, liveTrackColour);
+                    else deactivateTrack(liveTrackId);
                 } catch (err) {
                     console.error('Error handling live track follow change:', err);
                 }

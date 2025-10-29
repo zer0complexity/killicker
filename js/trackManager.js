@@ -87,15 +87,7 @@ export default class TrackManager {
      * @returns {Function} Unregister function
      */
     registerTracksListener(listener) {
-        this.tracksListeners.add(listener);
-        // call immediately with current state
-        try {
-            listener(this.getTracks());
-        }
-        catch (e) {
-            this.logger.error('tracks listener immediate call failed', e);
-        }
-        return () => { this.tracksListeners.delete(listener); };
+        return this._registerAndCall(this.tracksListeners, () => this.getTracks(), 'tracks', listener);
     }
 
     /**
@@ -120,15 +112,7 @@ export default class TrackManager {
      * @returns {Function} Unregister function
      */
     registerLiveTrackListener(listener) {
-        this.liveTrackListeners.add(listener);
-        // call immediately with current state
-        try {
-            listener(this.liveTrackId);
-        }
-        catch (e) {
-            this.logger.error('live track listener immediate call failed', e);
-        }
-        return () => { this.liveTrackListeners.delete(listener); };
+        return this._registerAndCall(this.liveTrackListeners, () => this.liveTrackId, 'live track', listener);
     }
 
     /**
@@ -144,9 +128,7 @@ export default class TrackManager {
             this.logger.debug(`Polling update.json for latest tracks.json timestamp...`);
             try {
                 // Fetch update.json to check for tracks.json and live track updates
-                const updateResponse = await fetch(`${this.baseUrl}/update.json`);
-                if (!updateResponse.ok) throw new Error(`HTTP error! status: ${updateResponse.status}`);
-                const updateData = await updateResponse.json();
+                const updateData = await this._fetchJson('update.json');
 
                 // Check if tracks.json has been updated (new tracks added or point counts changed)
                 const updateTimestamp = new Date(updateData.tracks?.edited);
@@ -195,9 +177,7 @@ export default class TrackManager {
      */
     async _fetchTracks(updateTimestamp) {
         try {
-            const response = await fetch(`${this.baseUrl}/tracks.json`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
+            const data = await this._fetchJson('tracks.json');
             this.lastTracksUpdate = updateTimestamp;
             return data.tracks || [];
         } catch (error) {
@@ -213,9 +193,7 @@ export default class TrackManager {
      */
     async _fetchTrackPoints(trackId) {
         this.logger.debug(`Fetching points for track ${trackId}...`);
-        const response = await fetch(`${this.baseUrl}/${trackId}.json`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
+        const data = await this._fetchJson(`${trackId}.json`);
         return data.points || [];
     }
 
@@ -264,5 +242,33 @@ export default class TrackManager {
                 this.logger.error(`Error in ${label} listener:`, e);
             }
         });
+    }
+
+    /**
+     * Helper to register a simple listener set that should be invoked immediately with current value.
+     * Returns an unregister function.
+     * @param {Set<Function>} listenersSet
+     * @param {Function} getCurrentValue - () => any
+     * @param {string} label
+     * @param {Function} listener
+     */
+    _registerAndCall(listenersSet, getCurrentValue, label, listener) {
+        listenersSet.add(listener);
+        try {
+            listener(getCurrentValue());
+        } catch (e) {
+            this.logger.error(`${label} listener immediate call failed`, e);
+        }
+        return () => { listenersSet.delete(listener); };
+    }
+
+    /**
+     * Fetch and parse JSON from a relative path under baseUrl
+     * @param {string} relativePath
+     */
+    async _fetchJson(relativePath) {
+        const response = await fetch(`${this.baseUrl}/${relativePath}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
     }
 }
