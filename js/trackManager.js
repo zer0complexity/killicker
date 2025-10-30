@@ -135,6 +135,11 @@ export default class TrackManager {
                 if (updateTimestamp > this.lastTracksUpdate) {
                     const nextTracks = await this._fetchTracks(updateTimestamp);
 
+                    // Sort by id descending to keep live track at front if applicable
+                    nextTracks.sort((a, b) => {
+                        return (a.id < b.id ? 1 : -1);
+                    });
+
                     // First, notify tracks list listeners (separate concern)
                     this._notifyTracksList(nextTracks);
 
