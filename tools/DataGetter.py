@@ -8,7 +8,7 @@ from git import Repo
 
 
 class DataGetter:
-    def __init__(self, influx_url, influx_token, influx_org, influx_bucket, json_file_path, repo_path):
+    def __init__(self, influx_url, influx_token, influx_org, influx_bucket, json_file_path, repo_path=None):
         self.influx_url = influx_url
         self.influx_token = influx_token
         self.influx_org = influx_org
@@ -319,10 +319,7 @@ if __name__ == "__main__":
             print(f"Skipping data retrieval for {day} as per ignore list.")
             continue
 
-        # DEBUG #
-        fname = day.strftime("%Y10%d") + "-0500.json"
-        # DEBUG #
-        # fname = day.strftime("%Y%m%d") + "-0500.json"
+        fname = day.strftime("%Y%m%d") + "-0500.json"
 
         getter = DataGetter(
             influx_url=args.influx_url,
