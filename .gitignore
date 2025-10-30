@@ -2,4 +2,5 @@
 .GOOGLE_MAPS_API_KEY
 js/loader.js
 tools/.*influx-token
+tools/__pycache__/
 killicker-data
