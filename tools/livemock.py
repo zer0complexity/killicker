@@ -29,7 +29,10 @@ def main(args):
         json_file_path="0xDEADBEEF",  # Not used in this script
     )
     update_interval = args.update_interval
-    start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
+    try:
+        start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d-%H%M').replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
     end_date = start_date + datetime.timedelta(days=args.day_count)
     data = data_getter.get_data(start_date.isoformat(), end_date.isoformat())
     print(f"Fetched {len(data)} data points from InfluxDB.")
