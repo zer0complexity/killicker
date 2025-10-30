@@ -249,6 +249,9 @@ export default class MapMenu {
             // If we already have a swatch colour for this track, apply it now
             const colour = this.swatchColours.get(track.id);
             if (colour) {
+                // If we have a swatch colour, the checkbox has to be checked to show it.
+                // This *should only* happen when moving a track from live to log while followed.
+                input.checked = true;
                 try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
             }
         });
