@@ -15,7 +15,7 @@ class DataExporter:
         existing_data = {}
         try:
             # Load existing data
-            existing_data = self._open_json_file(file_path, mode='r')
+            existing_data = self._read_json_file(file_path)
             existing_points = existing_data.get("points", [])
 
             # Extend with new points and save combined data
@@ -29,7 +29,7 @@ class DataExporter:
                 self.update_tracks_index(track_id, point_count)
             else:
                 # This is a live track. Update update.json live entry pointCount
-                update_data = self._open_json_file(self.update_file, mode='r')
+                update_data = self._read_json_file(self.update_file)
                 if "live" in update_data and update_data["live"]["id"] == track_id:
                     update_data["live"]["pointCount"] = point_count
                     self._write_json_file(self.update_file, update_data)
@@ -41,20 +41,29 @@ class DataExporter:
 
     def update_tracks_index(self, track_id, point_count):
         try:
-            index_data = self._open_json_file(self.tracks_file, mode='r')
+            index_data = self._read_json_file(self.tracks_file)
             tracks = index_data["tracks"] if "tracks" in index_data else []
-            track = self._get_track(track_id, tracks)
-            if track:
-                track["pointCount"] = point_count
+
+            if point_count < 0:
+                # Remove track entry
+                tracks = [track for track in tracks if track["id"] != track_id]
+                index_data["tracks"] = tracks
             else:
-                tracks.append({"id": track_id, "pointCount": point_count})
-            index_data["tracks"] = tracks
+                track = self._get_track(track_id, tracks)
+                if track:
+                    track["pointCount"] = point_count
+                else:
+                    tracks.append({"id": track_id, "pointCount": point_count})
+                index_data["tracks"] = tracks
+
             self._write_json_file(self.tracks_file, index_data)
+
             # Update tracks entry in update.json to reflect last edit time of tracks.json
-            update_data = self._open_json_file(self.update_file, mode='r')
+            update_data = self._read_json_file(self.update_file)
             update_data["tracks"]["edited"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self._write_json_file(self.update_file, update_data)
             print(f"Tracks index updated in {self.tracks_file}.")
+
         except Exception as e:
             print(f"Error updating tracks index in {self.tracks_file}: {e}")
 
@@ -62,7 +71,7 @@ class DataExporter:
     def start_live_track(self, track_id):
         # Add or update track entry in tracks.json. The track should show 0 points, and the real number of points will
         # be written to update.json
-        index_data = self._open_json_file(self.tracks_file, mode='r')
+        index_data = self._read_json_file(self.tracks_file)
         tracks = index_data["tracks"] if "tracks" in index_data else []
 
         previous_point_count = 0
@@ -79,7 +88,7 @@ class DataExporter:
             }
         }
         # Read existing update.json data to preserve other entries if any
-        existing_update_data = self._open_json_file(self.update_file, mode='r')
+        existing_update_data = self._read_json_file(self.update_file)
         existing_update_data.update(update_data)
         self._write_json_file(self.update_file, existing_update_data)
         print(f"Live track started for {track_id}.")
@@ -91,7 +100,7 @@ class DataExporter:
         and updating the corresponding track entry in tracks.json.
         """
         # Remove live track entry from update.json
-        update_data = self._open_json_file(self.update_file, mode='r')
+        update_data = self._read_json_file(self.update_file)
         if "live" in update_data:
             live_track_id = update_data["live"]["id"]
             live_track_point_count = update_data["live"]["pointCount"]
@@ -100,12 +109,7 @@ class DataExporter:
             del update_data["live"]
             self._write_json_file(self.update_file, update_data)
             # Update entry in tracks.json
-            index_data = self._open_json_file(self.tracks_file, mode='r')
-            tracks = index_data["tracks"] if "tracks" in index_data else []
-            track = self._get_track(live_track_id, tracks)
-            if track:
-                track["pointCount"] = live_track_point_count
-                self._write_json_file(self.tracks_file, index_data)
+            self.update_tracks_index(live_track_id, live_track_point_count)
             print("Live track ended.")
         else:
             print("No live track to end.")
@@ -127,13 +131,7 @@ class DataExporter:
             print(f"Track file not found, nothing to remove: {track_file}")
         except Exception as e:
             print(f"Error removing track file {track_file}: {e}")
-
-        # Remove from tracks.json
-        index_data = self._open_json_file(self.tracks_file, mode='r')
-        tracks = index_data["tracks"] if "tracks" in index_data else []
-        tracks = [track for track in tracks if track["id"] != track_id]
-        index_data["tracks"] = tracks
-        self._write_json_file(self.tracks_file, index_data)
+        self.update_tracks_index(track_id, -1)
         print(f"Removed track {track_id} from tracks index.")
 
 
@@ -163,28 +161,24 @@ class DataExporter:
             json.dump(data, f, indent=4)
             f.write('\n')
 
-    def _open_json_file(self, file_path, mode='r', default_value={}):
+    def _read_json_file(self, file_path, default_value={}):
         """
         Private method to handle all JSON file operations.
 
         Args:
             file_path: Path to the JSON file
-            mode: File opening mode ('r' for read, 'w' for write)
             default_value: Default value to return if file doesn't exist (for read mode)
 
         Returns:
             For read mode: parsed JSON data or default_value
             For write mode: file handle (to be used in context manager)
         """
-        if mode == 'r':
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except FileNotFoundError:
-                print(f"Warning: JSON file not found: {file_path}. Using default value.")
-                return default_value
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON file {file_path}: {e}")
-                return default_value
-        elif mode == 'w':
-            return open(file_path, 'w', encoding='utf-8')
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print(f"Warning: JSON file not found: {file_path}. Using default value.")
+            return default_value
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON file {file_path}: {e}")
+            return default_value
