@@ -2,6 +2,7 @@
 
 import datetime
 import json
+from math import radians, sin, cos, sqrt, atan2
 import os
 from influxdb_client import InfluxDBClient
 from git import Repo
@@ -59,7 +60,6 @@ class DataGetter:
 
             for table in tables:
                 prev_values = None
-                cumulative_distance = 0.0
                 for record in table.records:
                     if record.values["navigation.position_lat"] is None or record.values["navigation.position_lon"] is None:
                         print(f"Warning: Missing position at {record.get_time().isoformat()}, dropping record.")
@@ -79,25 +79,22 @@ class DataGetter:
                         if measurement_value is not None:
                             values[measurement_names[m]] = measurement_value
 
-                    # Compute distance from previous point if we have position and previous position
-                    if prev_values is not None:
-                        cumulative_distance += self._compute_distance(prev_values["position"], values["position"])
-                        values["Distance"] = cumulative_distance
-                    else:
-                        values["Distance"] = 0.0
-
                     # If record_ts is multiple of 10 minutes, store it in full. Otherwise, only store if it has COG
                     # and it is within 15 degrees of previous COG
-                    if rts.minute % 10 == 0 and rts.second == 0:
+                    add_values = rts.minute % 10 == 0 and rts.second == 0
+                    if not add_values and prev_values is not None and "COG" in values and "COG" in prev_values:
+                        cog_diff = abs(values["COG"] - prev_values["COG"])
+                        if cog_diff > 0.2618:  # 15 degrees in radians
+                            add_values = True
+                            values = {
+                                "position": values["position"],
+                                "COG": values["COG"]
+                            }
+                    if add_values:
+                        values["Distance"] = (
+                            self._compute_distance(prev_values["position"], values["position"]) + prev_values["Distance"]
+                        ) if prev_values is not None else 0.0
                         result[record_ts] = values
-                        prev_values = values
-                    elif "COG" in values and "COG" in prev_values and abs(values["COG"] - prev_values["COG"]) > 0.2618:
-                        # Significant course change, store the point, but just position and COG
-                        print(f"Significant COG change at {record_ts}, storing position and COG.")
-                        result[record_ts] = {
-                            "position": values["position"],
-                            "COG": values["COG"]
-                        }
                         prev_values = result[record_ts]
 
             # Convert result to a list of dicts sorted by timestamp
@@ -115,8 +112,7 @@ class DataGetter:
             return result
 
     def _compute_distance(self, pos1, pos2):
-        from math import radians, sin, cos, sqrt, atan2
-        R = 6371.0  # Earth radius in km
+        EARTH_RADIUS_M = 6371000.0  # Earth radius in meters
 
         lat1 = radians(pos1["lat"])
         lon1 = radians(pos1["lng"])
@@ -129,7 +125,7 @@ class DataGetter:
         a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
         c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-        distance = R * c * 1000  # in meters
+        distance = EARTH_RADIUS_M * c  # in meters
         return distance
 
     def update_json_file(self, new_data, update_tracks_index=True):
