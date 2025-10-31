@@ -34,7 +34,7 @@ def main(args):
     except ValueError:
         start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
     end_date = start_date + datetime.timedelta(days=args.day_count)
-    data = data_getter.get_data(start_date.isoformat(), end_date.isoformat())
+    data = data_getter.get_data(start_date.isoformat(), end_date.isoformat(), interval=args.retrieval_interval)
     print(f"Fetched {len(data)} data points from InfluxDB.")
 
     # Update JSON files one point at a time every update_interval seconds, if specified
@@ -49,7 +49,7 @@ def main(args):
         exporter.end_live_track()
     else:
         # Just print the data
-        print(json.dumps(data, indent=4))
+        print(json.dumps({"points": data}, indent=4))
 
 
 if __name__ == "__main__":
@@ -100,6 +100,13 @@ if __name__ == "__main__":
         metavar='SECONDS',
         default=10,
         help='If set, update one point at a time, waiting SECONDS between updates'
+    )
+    parser.add_argument(
+        '--retrieval-interval',
+        type=str,
+        metavar='InfluxDB DURATION',
+        default='10s',
+        help='Retrieve records from InfluxDB at this interval (default: "10s")'
     )
     parser.add_argument(
         '--remove-track',
