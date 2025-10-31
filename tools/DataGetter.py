@@ -41,8 +41,6 @@ class DataGetter:
             "environment.wind.angleApparent_value",
             "environment.wind.speedApparent_value",
             "environment.depth.belowTransducer_value",
-            "navigation.position_lat",
-            # "navigation.position_lon", # Handled together with lat
         ]
         measurement_names = {
             "navigation.speedOverGround_value": "SOG",
@@ -63,37 +61,44 @@ class DataGetter:
                 prev_values = None
                 cumulative_distance = 0.0
                 for record in table.records:
-                    try:
-                        values = result[record.get_time().isoformat()]
-                    except KeyError:
-                        values = {}
-                        result[record.get_time().isoformat()] = values
+                    if record.values["navigation.position_lat"] is None or record.values["navigation.position_lon"] is None:
+                        print(f"Warning: Missing position at {record.get_time().isoformat()}, dropping record.")
+                        continue  # Skip this record if no position
+
+                    rts = record.get_time()
+                    record_ts = record.get_time().isoformat()
+                    values = {}
+
+                    values["position"] = {
+                        "lat": record.values["navigation.position_lat"],
+                        "lng": record.values["navigation.position_lon"]
+                    }
 
                     for m in measurements:
-                        # This is inefficient because we loop over all measurements for each record,
-                        # but it's simpler than other approaches and performance is not critical here.
                         measurement_value = record.values.get(m)
                         if measurement_value is not None:
-                            if m == "navigation.position_lat" or m == "navigation.position_lon":
-                                values["position"] = {
-                                    "lat": record.values.get("navigation.position_lat"),
-                                    "lng": record.values.get("navigation.position_lon")
-                                }
-                            else:
-                                values[measurement_names[m]] = record.values.get(m)
+                            values[measurement_names[m]] = measurement_value
 
                     # Compute distance from previous point if we have position and previous position
-                    try:
-                        if prev_values is not None:
-                            cumulative_distance += self._compute_distance(prev_values["position"], values["position"])
-                            values["Distance"] = cumulative_distance
-                        else:
-                            values["Distance"] = 0.0
+                    if prev_values is not None:
+                        cumulative_distance += self._compute_distance(prev_values["position"], values["position"])
+                        values["Distance"] = cumulative_distance
+                    else:
+                        values["Distance"] = 0.0
+
+                    # If record_ts is multiple of 10 minutes, store it in full. Otherwise, only store if it has COG
+                    # and it is within 15 degrees of previous COG
+                    if rts.minute % 10 == 0 and rts.second == 0:
+                        result[record_ts] = values
                         prev_values = values
-                    except KeyError:
-                        print(f"Warning: Missing position data at {record.get_time().isoformat()}")
-                        # Keep prev_values as is but delete entry from result. Entries with no position are useless
-                        del result[record.get_time().isoformat()]
+                    elif "COG" in values and "COG" in prev_values and abs(values["COG"] - prev_values["COG"]) > 0.2618:
+                        # Significant course change, store the point, but just position and COG
+                        print(f"Significant COG change at {record_ts}, storing position and COG.")
+                        result[record_ts] = {
+                            "position": values["position"],
+                            "COG": values["COG"]
+                        }
+                        prev_values = result[record_ts]
 
             # Convert result to a list of dicts sorted by timestamp
             flattened_result = {}
