@@ -16,24 +16,22 @@ class DataGetter:
         self.json_file_path = json_file_path
         self.repo_path = repo_path
 
-    def get_data(self, start_time, stop_time):
+    def get_data(self, start_time, stop_time, interval='10m'):
         client = InfluxDBClient(url=self.influx_url, token=self.influx_token, org=self.influx_org)
         query = f'''
-            winddepth = from(bucket: "{self.bucket}")
+            from(bucket: "killick")
                 |> range(start: {start_time}, stop: {stop_time})
-                |> filter(fn: (r) => r["_measurement"] == "environment.depth.belowTransducer" or r["_measurement"] == "environment.wind.angleApparent" or r["_measurement"] == "environment.wind.speedApparent")
-                |> filter(fn: (r) => r["source"] == "PICAN-M.105")
-                |> drop(columns:["source", "context", "self"])
-                |> aggregateWindow(every: 10m, fn: last, createEmpty: false)
-
-            sogcogpos = from(bucket: "{self.bucket}")
-                |> range(start: {start_time}, stop: {stop_time})
-                |> filter(fn: (r) => r["_measurement"] == "navigation.speedOverGround" or r["_measurement"] == "navigation.courseOverGroundTrue" or r["_measurement"] == "navigation.position")
-                |> filter(fn: (r) => r["source"] == "USB_GPS_Puck.GN")
-                |> drop(columns:["source", "context", "self", "s2_cell_id"])
-                |> aggregateWindow(every: 10m, fn: last, createEmpty: false)
-
-            union(tables: [winddepth, sogcogpos])
+                |> filter(fn: (r) =>
+                    (r["source"] == "PICAN-M.105" or r["source"] == "USB_GPS_Puck.GN") and
+                    r["_measurement"] == "environment.depth.belowTransducer" or
+                    r["_measurement"] == "environment.wind.angleApparent" or
+                    r["_measurement"] == "environment.wind.speedApparent" or
+                    r["_measurement"] == "navigation.speedOverGround" or
+                    r["_measurement"] == "navigation.courseOverGroundTrue" or
+                    r["_measurement"] == "navigation.position"
+                )
+                |> drop(columns: ["source", "context", "self", "s2_cell_id"])
+                |> aggregateWindow(every: {interval}, fn: last, createEmpty: false)
                 |> pivot(rowKey:["_time", "_start", "_stop"], columnKey: ["_measurement", "_field"], valueColumn: "_value")
         '''
         query_api = client.query_api()
@@ -53,12 +51,17 @@ class DataGetter:
             "environment.wind.speedApparent_value": "AWS",
             "environment.depth.belowTransducer_value": "Depth",
         }
-        sorted_names = ["SOG", "COG", "AWA", "AWS", "Depth", "position"]
+        sorted_names = ["SOG", "COG", "AWA", "AWS", "Depth", "position", "Distance"]
         try:
             result = {}
             tables = query_api.query(query)
 
+            if len(tables) > 1:
+                raise Exception(f"Unexpected multiple tables in InfluxDB query result (query returned {len(tables)} tables)")
+
             for table in tables:
+                prev_values = None
+                cumulative_distance = 0.0
                 for record in table.records:
                     try:
                         values = result[record.get_time().isoformat()]
@@ -79,17 +82,50 @@ class DataGetter:
                             else:
                                 values[measurement_names[m]] = record.values.get(m)
 
+                    # Compute distance from previous point if we have position and previous position
+                    try:
+                        if prev_values is not None:
+                            cumulative_distance += self._compute_distance(prev_values["position"], values["position"])
+                            values["Distance"] = cumulative_distance
+                        else:
+                            values["Distance"] = 0.0
+                        prev_values = values
+                    except KeyError:
+                        print(f"Warning: Missing position data at {record.get_time().isoformat()}")
+                        # Keep prev_values as is but delete entry from result. Entries with no position are useless
+                        del result[record.get_time().isoformat()]
+
             # Convert result to a list of dicts sorted by timestamp
             flattened_result = {}
             for ts, data in result.items():
                 flattened_result[ts] = {key: data[key] for key in sorted_names if key in data}
             result = [{"timestamp": ts, **data} for ts, data in flattened_result.items()]
 
+        except KeyError as e:
+            print(f"Error processing InfluxDB data: missing key {e}")
         except Exception as e:
-            print(f"Error querying InfluxDB: {e}")
+            print(f"Error querying InfluxDB: {e} {type(e).__name__}")
         finally:
             client.close()
             return result
+
+    def _compute_distance(self, pos1, pos2):
+        from math import radians, sin, cos, sqrt, atan2
+        R = 6371.0  # Earth radius in km
+
+        lat1 = radians(pos1["lat"])
+        lon1 = radians(pos1["lng"])
+        lat2 = radians(pos2["lat"])
+        lon2 = radians(pos2["lng"])
+
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+
+        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        distance = R * c * 1000  # in meters
+        return distance
 
     def update_json_file(self, new_data, update_tracks_index=True):
         """
@@ -98,6 +134,7 @@ class DataGetter:
         Args:
             new_data (list): New data to be added to the JSON file
         """
+        raise NotImplementedError("Don't use this. Use DataExporter.py instead.")
         try:
             if os.path.exists(self.json_file_path):
                 with open(self.json_file_path, 'r') as f:
@@ -127,6 +164,7 @@ class DataGetter:
         Args:
             commit_message (str): Optional commit message. If None, a default message is used.
         """
+        raise NotImplementedError("Don't use this. Use DataExporter.py instead.")
         try:
             repo = Repo(self.repo_path)
 
@@ -158,6 +196,7 @@ class DataGetter:
         - Updates pointCount if entry exists
         - Keeps tracks sorted by id for stability
         """
+        raise NotImplementedError("Don't use this. Use DataExporter.py instead.")
         try:
             # Load existing tracks.json or initialize a new structure
             tracks_index_path = os.path.join(os.path.dirname(self.json_file_path), 'tracks.json')
@@ -201,6 +240,7 @@ class DataGetter:
         """
         Update update.json file with new data.
         """
+        raise NotImplementedError("Don't use this. Use DataExporter.py instead.")
         try:
             update_path = os.path.join(os.path.dirname(self.json_file_path), 'update.json')
             if os.path.exists(update_path):
@@ -338,6 +378,7 @@ if __name__ == "__main__":
         pointCount = len(points)
         if pointCount > 0:
             print(f"Retrieved {pointCount} data points for {day}")
+            continue
 
             if args.single_point_interval is not None:
                 # Update one point at a time
