@@ -125,6 +125,8 @@ export default class TrackView {
                 return { value: (value * 1.94384).toFixed(1), unit: ' knots' };
             case 'COG':
                 return { value: (value * (180 / Math.PI)).toFixed(0), unit: '° T' };
+            case 'Distance':
+                return { value: (value * 0.000539957).toFixed(2), unit: ' nm' };
             default:
                 return { value: value, unit: '' };
         }
@@ -142,13 +144,19 @@ export default class TrackView {
         // Treat incoming points as a delta to append
         points.forEach(element => {
             if (this.markers.length > 0 && this.prevPointData) {
-                this.markers.at(-1).setMap(null);  // Remove the last transparent marker
-                this.markers.pop();
-                this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
+                // If the point doesn't have SOG, skip placing a marker
+                if (this.prevPointData.SOG !== undefined) {
+                    this.markers.at(-1).setMap(null);  // Remove the last transparent marker
+                    this.markers.pop();
+                    this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
+                }
             }
             this.addPointToTrack(element.position, this.markers.length === 0);
             this.prevPointData = element;
-            this.markers.push(this.placeMarker(element, arrowSvg));
+            // If the point doesn't have SOG, skip placing a marker
+            if (element.SOG !== undefined) {
+                this.markers.push(this.placeMarker(element, arrowSvg));
+            }
         });
     }
 
