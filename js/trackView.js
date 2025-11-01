@@ -1,3 +1,5 @@
+import UnitManager from './unitManager.js';
+
 // TrackView module: handles rendering polyline and markers on a Google Map.
 export default class TrackView {
 
@@ -97,7 +99,7 @@ export default class TrackView {
                 const metadataLines = [];
                 for (const key in pointData) {
                     if (key !== 'position' && key !== 'timestamp' && pointData[key] !== undefined) {
-                        const convertedValue = TrackView.convertValue(key, pointData[key]);
+                        const convertedValue = UnitManager.convertValue(key, pointData[key]);
                         metadataLines.push(`<strong>${key}:</strong> ${convertedValue.value}${convertedValue.unit}`);
                     }
                 }
@@ -112,24 +114,6 @@ export default class TrackView {
         });
 
         return marker;
-    }
-
-    static convertValue(key, value) {
-        switch (key) {
-            case 'Depth':
-                return { value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--', unit: ' ft' };
-            case 'AWA':
-                return { value: (Math.abs(value) * (180 / Math.PI)).toFixed(0), unit: `° ${value < 0 ? 'port' : 'starboard'}` };
-            case 'AWS':
-            case 'SOG':
-                return { value: (value * 1.94384).toFixed(1), unit: ' knots' };
-            case 'COG':
-                return { value: (value * (180 / Math.PI)).toFixed(0), unit: '° T' };
-            case 'Distance':
-                return { value: (value * 0.000539957).toFixed(2), unit: ' nm' };
-            default:
-                return { value: value, unit: '' };
-        }
     }
 
     /**

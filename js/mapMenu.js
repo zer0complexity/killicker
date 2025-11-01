@@ -1,3 +1,5 @@
+import UnitManager from './unitManager.js';
+
 // MapMenu: overlay control with two collapsible sections - Live Track and Log
 export default class MapMenu {
     /**
@@ -221,7 +223,8 @@ export default class MapMenu {
             input.className = 'map-menu-checkbox';
 
             const label = document.createElement('label');
-            label.textContent = `${MapMenu.beautifyTrackId(track.id)} (${track.pointCount || 0} points)`;
+            const distance = UnitManager.convertValue('Distance', track.Distance || 0);
+            label.textContent = `${MapMenu.beautifyTrackId(track.id)} (${distance.value} ${distance.unit})`;
             label.className = 'map-menu-label';
 
             input.addEventListener('change', (ev) => {
