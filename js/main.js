@@ -120,6 +120,7 @@ initMap().then(async (m) => {
         const colour = explicitColour || getTrackColour(trackId);
         await createTrackView(trackId, colour);
         menu.setTrackSwatch(trackId, colour);
+        menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
     };
     const deactivateTrack = (trackId) => {
         if (!trackId) return;
@@ -129,11 +130,12 @@ initMap().then(async (m) => {
         entry.trackView.destroy();
         activeTrackViews.delete(trackId);
         menu.removeTrackSwatch(trackId);
+        menu.subtractSelectedDistance(trackManager.getTrackDistance(trackId));
     };
     // Create the map menu UI and populate with tracks
     const menu = new MapMenu(
-        map, 
-        trackManager.getTracks(), 
+        map,
+        trackManager.getTracks(),
         async (trackId, checked) => {
             try {
                 if (checked) await activateTrack(trackId);

@@ -25,7 +25,7 @@ export class UnitManager {
 				return { value: (value * (180 / Math.PI)).toFixed(0), unit: '° T' };
 			case 'Distance':
 				// Meters -> nautical miles
-				return { value: (value * 0.000539957).toFixed(2), unit: ' nm' };
+				return { value: (value * 0.000539957).toFixed(1), unit: ' nm' };
 			default:
 				return { value: value, unit: '' };
 		}

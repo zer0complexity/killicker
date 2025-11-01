@@ -82,6 +82,16 @@ export default class TrackManager {
     }
 
     /**
+     * Get the distance of a specific track
+     * @param {string} trackId
+     * @returns {number|null} Distance in meters, or null if not found
+     */
+    getTrackDistance(trackId) {
+        const track = this.tracks.find(t => t.id === trackId);
+        return track ? (track.Distance || null) : null;
+    }
+
+    /**
      * Register a listener for changes to the full tracks list (tracks.json)
      * @param {Function} listener - Function(tracksArray)
      * @returns {Function} Unregister function

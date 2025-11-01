@@ -32,6 +32,19 @@ export default class MapMenu {
         this.body.className = 'map-menu-body';
         this.container.appendChild(this.body);
 
+        // Persistent footer area (always visible) to show selected distance
+        this.footer = document.createElement('div');
+        this.footer.className = 'map-menu-footer';
+        const footerLabel = document.createElement('span');
+        footerLabel.className = 'map-menu-footer-label';
+        footerLabel.textContent = 'Selected distance:';
+        this.selectedDistanceValue = document.createElement('span');
+        this.selectedDistanceValue.className = 'map-menu-footer-value';
+        this.selectedDistanceValue.textContent = '';
+        this.footer.appendChild(footerLabel);
+        this.footer.appendChild(this.selectedDistanceValue);
+        this.container.appendChild(this.footer);
+
         // Live Track Section
         this.liveSection = this._createSection('Live Track', 'live-track');
         this.liveFollowCheckbox = document.createElement('input');
@@ -199,6 +212,8 @@ export default class MapMenu {
      * @param {Array} tracks
      */
     setTracks(tracks = []) {
+        this.addSelectedDistance(0);
+
         // Capture currently selected track IDs to preserve selection
         const previouslySelected = new Set();
         if (this.checkboxes && this.checkboxes.size) {
@@ -327,8 +342,75 @@ export default class MapMenu {
         if (input) input.checked = !!checked;
     }
 
-    // no toggle/keyboard helper methods
+    /**
+     * Update the displayed selected distance value.
+     * If passed a number, it will be treated as meters and formatted via UnitManager.
+     * Otherwise the value is coerced to string and displayed as-is.
+     * @param {number|string|null} value
+     */
+    addSelectedDistance(value) {
+        if (!this.selectedDistanceValue) return;
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        if (typeof value === 'number' && isFinite(value)) {
+            // Assume meters input
+            const converted = UnitManager.convertValue('Distance', value);
+            const currentText = this.selectedDistanceValue.textContent;
+            let currentMeters = 0;
+            if (currentText) {
+                const parts = currentText.split(' ');
+                if (parts.length >= 2) {
+                    const currentValue = parseFloat(parts[0]);
+                    const currentUnit = parts[1];
+                    switch (currentUnit) {
+                        case 'nm':
+                            currentMeters = currentValue / 0.000539957;
+                            break;
+                        default:
+                            currentMeters = 0; // unsupported unit
+                    }
+                }
+            }
+            currentMeters += value;
+            const newConverted = UnitManager.convertValue('Distance', currentMeters);
+            this.selectedDistanceValue.textContent = `${newConverted.value}${newConverted.unit}`;
+        } else {
+            this.selectedDistanceValue.textContent = `${converted.value}${converted.unit}`;
+        }
+    }
 
+    subtractSelectedDistance(value) {
+        if (!this.selectedDistanceValue) return;
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        // Get current distance in meters
+        const currentText = this.selectedDistanceValue.textContent;
+        if (!currentText) return;
+        const parts = currentText.split(' ');
+        if (parts.length < 2) return;
+        const currentValue = parseFloat(parts[0]);
+        const currentUnit = parts[1];
+        let currentMeters = null;
+        switch (currentUnit) {
+            case 'nm':
+                currentMeters = currentValue / 0.000539957;
+                break;
+            default:
+                return; // unsupported unit
+        }
+        if (typeof value === 'number' && isFinite(value)) {
+            currentMeters -= value;
+            if (currentMeters < 0) currentMeters = 0;
+            const converted = UnitManager.convertValue('Distance', currentMeters);
+            this.selectedDistanceValue.textContent = `${converted.value}${converted.unit}`;
+        }
+    }
+
+    /**
+     * Clean up and remove the menu from the map
+     */
     destroy() {
         try {
             // Remove from map controls

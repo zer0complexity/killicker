@@ -158,3 +158,27 @@
     vertical-align: -2px; /* nudge to align visually with text */
 }
 /* No keyboard focus styles (keyboard/ARIA changes reverted) */
+
+/* Persistent footer at the bottom of the menu container (always visible)
+   Stays outside the collapsible body so it's shown both when menu is open
+   and when collapsed. */
+.map-menu-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    background: rgba(255,255,255,0.92);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.map-menu-footer-label {
+    font-weight: 600;
+}
+.map-menu-footer-value {
+    color: #111;
+    opacity: 0.95;
+}
