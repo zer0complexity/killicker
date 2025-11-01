@@ -175,6 +175,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.map-menu-container:not(.open) .map-menu-footer {
+    display: none;
+}
 .map-menu-footer-label {
     font-weight: 600;
 }
