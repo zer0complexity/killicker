@@ -18,7 +18,7 @@ class DataGetter:
         self.repo_path = repo_path
 
     def get_data(self, start_time, stop_time, interval='10m'):
-        client = InfluxDBClient(url=self.influx_url, token=self.influx_token, org=self.influx_org)
+        client = InfluxDBClient(url=self.influx_url, token=self.influx_token, org=self.influx_org, timeout=60000)
         query = f'''
             from(bucket: "killick")
                 |> range(start: {start_time}, stop: {stop_time})
@@ -62,7 +62,6 @@ class DataGetter:
                 prev_values = None
                 for record in table.records:
                     if record.values["navigation.position_lat"] is None or record.values["navigation.position_lon"] is None:
-                        print(f"Warning: Missing position at {record.get_time().isoformat()}, dropping record.")
                         continue  # Skip this record if no position
 
                     rts = record.get_time()
