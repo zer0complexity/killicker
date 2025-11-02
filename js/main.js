@@ -86,22 +86,22 @@ initMap().then(async (m) => {
 
     const liveTrackColour = "#ff9000";
     const trackColours = [
-        "#ff1a1a",
-        "#ff7a1a",
-        "#ffd21a",
-        "#aaff1a",
-        "#1aff7a",
-        "#1affd2",
-        "#1aaaff",
-        "#1a5aff",
-        "#7a1aff",
-        "#d21aff",
-        "#ff1aa6",
-        "#ff1a5a",
-        "#ff4c1a",
-        "#ffb31a",
         "#5aff1a",
-        "#1aff4c"
+        "#d21aff",
+        "#ffb31a",
+        "#1a5aff",
+        "#aaff1a",
+        "#7a1aff",
+        "#ff7a1a",
+        "#1aff4c",
+        "#ff1a1a",
+        "#1affd2",
+        "#ff1aa6",
+        "#ffd21a",
+        "#1aaaff",
+        "#ff1a5a",
+        "#1aff7a",
+        "#ff4c1a"
     ];
     const trackColourCache = new Map(); // trackId -> colour
 
