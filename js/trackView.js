@@ -26,13 +26,14 @@ export default class TrackView {
         return TrackView.arrowSvgCache.replace(/FILL_COLOR/g, colour);
     }
 
-    constructor(map, trackColour) {
+    constructor(map, trackColour, centerMap) {
         this.map = map;
         this.trackColour = trackColour;
         this.trackPoints = [];
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
         this.prevPointData = null;
+        this.centerMap = centerMap;
 
         // create the polyline
         this.track = new google.maps.Polyline({
@@ -45,10 +46,11 @@ export default class TrackView {
         this.track.setMap(this.map);
     }
 
-    addPointToTrack(position, centerMap) {
+    addPointToTrack(position) {
         this.trackPoints.push(position);
         this.track.setPath(this.trackPoints);
-        if (centerMap) {
+        if (this.trackPoints.length === 1 && this.centerMap) {
+            // Only center map on first point if requested
             this.map.setCenter(position);
         }
     }
@@ -135,7 +137,7 @@ export default class TrackView {
                     this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
                 }
             }
-            this.addPointToTrack(element.position, this.markers.length === 0);
+            this.addPointToTrack(element.position);
             this.prevPointData = element;
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {

@@ -13,9 +13,10 @@ const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
  * Factory to create and register a TrackView for a specific track.
  * @param {string} trackId - ID of the track to display
  * @param {string} trackColour - Color for the track
+ * @param {boolean} centerMap - Whether to center the map on the first point
  * @returns {Promise<Object>} Promise of { trackView, trackId, unregister }
  */
-async function createTrackView(trackId, trackColour) {
+async function createTrackView(trackId, trackColour, centerMap = false) {
     if (!map) {
         throw new Error('createTrackView called before map initialization; call after initMap completes');
     }
@@ -23,7 +24,7 @@ async function createTrackView(trackId, trackColour) {
         throw new Error('createTrackView called before TrackManager initialization');
     }
 
-    const tv = new TrackView(map, trackColour);
+    const tv = new TrackView(map, trackColour, centerMap);
 
     // Register a listener so TrackView receives initial and subsequent updates
     const unregister = await trackManager.registerListener(trackId, (points) => {
@@ -115,10 +116,10 @@ initMap().then(async (m) => {
     };
 
     // Helpers to activate/deactivate a track view and keep menu swatch in sync
-    const activateTrack = async (trackId, explicitColour) => {
+    const activateTrack = async (trackId, explicitColour, centerMap) => {
         if (!trackId || activeTrackViews.has(trackId)) return;
         const colour = explicitColour || getTrackColour(trackId);
-        await createTrackView(trackId, colour);
+        await createTrackView(trackId, colour, centerMap);
         menu.setTrackSwatch(trackId, colour);
         menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
     };
@@ -138,7 +139,7 @@ initMap().then(async (m) => {
         trackManager.getTracks(),
         async (trackId, checked) => {
             try {
-                if (checked) await activateTrack(trackId);
+                if (checked) await activateTrack(trackId, null, activeTrackViews.size === 0);
                 else deactivateTrack(trackId);
             } catch (err) {
                 console.error('Error handling menu change:', err);
@@ -151,8 +152,12 @@ initMap().then(async (m) => {
                 const liveTrackId = trackManager.getLiveTrackId();
                 if (!liveTrackId) return;
                 try {
-                    if (checked) await activateTrack(liveTrackId, liveTrackColour);
-                    else deactivateTrack(liveTrackId);
+                    if (checked) {
+                        // Live track always centers map on activation
+                        await activateTrack(liveTrackId, liveTrackColour, true);
+                    } else {
+                        deactivateTrack(liveTrackId);
+                    }
                 } catch (err) {
                     console.error('Error handling live track follow change:', err);
                 }
