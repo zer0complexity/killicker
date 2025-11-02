@@ -20,8 +20,7 @@ def mock_live(args):
         influx_url=args.influx_url,
         influx_token=token,
         influx_org="navi",
-        influx_bucket="killick",
-        json_file_path="0xDEADBEEF",
+        influx_bucket="killick"
     )
     update_interval = args.update_interval
     start_date = get_datetime(args.start_date)
@@ -122,8 +121,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--start-date',
         type=str,
-        default='2025-07-11',
-        help='Start date in YYYY-MM-DD format'
+        default='2025-07-13',
+        help='Start date in YYYY-MM-DD format (default: 2025-07-13)'
     )
     parser.add_argument(
         '--hour-count',

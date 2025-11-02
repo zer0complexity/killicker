@@ -18,8 +18,7 @@ def export_day_track(args):
         influx_url=args.influx_url,
         influx_token=token,
         influx_org="navi",
-        influx_bucket="killick",
-        json_file_path="0xDEADBEEF",
+        influx_bucket="killick"
     )
     start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
     if start_date is None:
