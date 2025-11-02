@@ -268,9 +268,12 @@ export default class MapMenu {
             const colour = this.swatchColours.get(track.id);
             if (colour) {
                 // If we have a swatch colour, the checkbox has to be checked to show it.
-                // This *should only* happen when moving a track from live to log while followed.
                 input.checked = true;
                 try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
+                if (!previouslySelected.has(track.id)) {
+                    // If this track wasn't previously selected, add its distance. This was a live track being followed
+                    this.addSelectedDistance(track.Distance);
+                }
             }
         });
 
@@ -376,7 +379,7 @@ export default class MapMenu {
             const newConverted = UnitManager.convertValue('Distance', currentMeters);
             this.selectedDistanceValue.textContent = `${newConverted.value}${newConverted.unit}`;
         } else {
-            this.selectedDistanceValue.textContent = `${converted.value}${converted.unit}`;
+            this.selectedDistanceValue.textContent = `${value}`;
         }
     }
 
