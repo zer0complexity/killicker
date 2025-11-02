@@ -8,16 +8,11 @@ import json
 import time
 
 
-def main(args):
+def mock_live(args):
     # Read token from file
-    try:
-        with open(args.token_file, 'r', encoding='utf-8') as f:
-            token = f.read().strip()
-    except FileNotFoundError:
-        print(f"Error: Token file not found: {args.token_file}")
-        exit(1)
-    except Exception as e:
-        print(f"Error reading token file: {e}")
+    token = get_influx_token(args.token_file)
+    if token is None:
+        print(f"Error: Could not read token from file: {args.token_file}")
         exit(1)
 
     # Get data from InfluxDB
@@ -26,14 +21,15 @@ def main(args):
         influx_token=token,
         influx_org="navi",
         influx_bucket="killick",
-        json_file_path="0xDEADBEEF",  # Not used in this script
+        json_file_path="0xDEADBEEF",
     )
     update_interval = args.update_interval
-    try:
-        start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d-%H%M').replace(tzinfo=datetime.timezone.utc)
-    except ValueError:
-        start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
-    end_date = start_date + datetime.timedelta(days=args.day_count)
+    start_date = get_datetime(args.start_date)
+    if start_date is None:
+        print(f"Error: Invalid start date format: {args.start_date}. Expected format is 'YYYY-MM-DD-HHMM' or 'YYYY-MM-DD'.")
+        exit(1)
+
+    end_date = start_date + datetime.timedelta(hours=args.hour_count)
     data = data_getter.get_data(start_date.isoformat(), end_date.isoformat(), interval=args.retrieval_interval)
     print(f"Fetched {len(data)} data points from InfluxDB.")
 
@@ -42,7 +38,7 @@ def main(args):
         exporter = DataExporter(data_dir=args.output_path)
         exporter.start_live_track(args.track_id)
         for i, point in enumerate(data):
-            exporter.extend_track(args.track_id, [point], update_tracks_index=False)
+            exporter.write_track(args.track_id, [point], update_tracks_index=False, extend=True)
             print(f"Exported point {i + 1}/{len(data)} for track {args.track_id}.")
             if i < len(data) - 1:
                 time.sleep(update_interval)
@@ -50,6 +46,71 @@ def main(args):
     else:
         # Just print the data
         print(json.dumps({"points": data}, indent=4))
+
+
+def export_day_track(args):
+    # Read token from file
+    token = get_influx_token(args.token_file)
+    if token is None:
+        print(f"Error: Could not read token from file: {args.token_file}")
+        exit(1)
+
+    # Get data from InfluxDB
+    data_getter = DataGetter(
+        influx_url=args.influx_url,
+        influx_token=token,
+        influx_org="navi",
+        influx_bucket="killick",
+        json_file_path="0xDEADBEEF",
+    )
+    start_date = get_datetime(args.start_date)
+    if start_date is None:
+        print(f"Error: Invalid date format: {args.start_date}. Expected format is 'YYYY-MM-DD-HHMM' or 'YYYY-MM-DD'.")
+        exit(1)
+
+    end_date = start_date + datetime.timedelta(hours=args.hour_count)
+    print(f"Fetching data from {start_date.isoformat()} to {end_date.isoformat()}...")
+    data = data_getter.get_data(start_date.isoformat(), end_date.isoformat(), interval=args.retrieval_interval)
+    print(f"Fetched {len(data)} data points from InfluxDB.")
+
+    # Export data
+    exporter = DataExporter(data_dir=args.output_path)
+    exporter.write_track(f"{start_date.strftime('%Y%m%d-%H%M')}", data, update_tracks_index=True, extend=False)
+    print(f"Exported track for date {start_date.isoformat()}.")
+
+
+def get_influx_token(token_file):
+    """
+    Read the InfluxDB token from the specified file.
+
+    Args:
+        token_file (str): Path to the file containing the InfluxDB token.
+    """
+    try:
+        with open(token_file, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        print(f"Error: Token file not found: {token_file}")
+        return None
+    except Exception as e:
+        print(f"Error reading token file: {e}")
+        return None
+
+
+def get_datetime(date_str):
+    """
+    Convert a date string in 'YYYY-MM-DD' format to a datetime object.
+
+    Args:
+        date_str (str): Date string in 'YYYY-MM-DD-HHMM' or 'YYYY-MM-DD' format.
+
+    Returns:
+        datetime.datetime: Corresponding datetime object, or None if parsing fails.
+    """
+    try:
+        return datetime.datetime.strptime(date_str, '%Y-%m-%d-%H%M').replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return datetime.datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
 
 
 if __name__ == "__main__":
@@ -65,10 +126,10 @@ if __name__ == "__main__":
         help='Start date in YYYY-MM-DD format'
     )
     parser.add_argument(
-        '--day-count',
+        '--hour-count',
         type=int,
-        default=1,
-        help='Number of days to fetch data for'
+        default=24,
+        help='Number of hours to fetch data for (default: 24)'
     )
     parser.add_argument(
         '--influx-url',
@@ -113,10 +174,17 @@ if __name__ == "__main__":
         type=str,
         help='If set, remove the specified track ID from the JSON files and exit. Ignores other options.'
     )
+    parser.add_argument(
+        '--export', '-e',
+        action='store_true',
+        help='If set, export a single track to JSON files instead of mocking live tracking.'
+    )
 
     args = parser.parse_args()
     if args.remove_track:
         exporter = DataExporter(data_dir=args.output_path)
         exporter.remove_track(args.remove_track)
+    elif args.export:
+        export_day_track(args)
     else:
-        main(args)
+        mock_live(args)
