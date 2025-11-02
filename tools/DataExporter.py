@@ -10,28 +10,32 @@ class DataExporter:
         self.tracks_file = os.path.join(self.data_dir, "tracks.json")
 
 
-    def extend_track(self, track_id, points_data, update_tracks_index=True):
+    def write_track(self, track_id, points_data, update_tracks_index=True, extend=True):
         file_path = os.path.join(self.data_dir, f"{track_id}.json")
         existing_data = {}
         try:
-            # Load existing data
-            existing_data = self._read_json_file(file_path)
-            existing_points = existing_data.get("points", [])
+            if extend:
+                # Extend with new points and save combined data
+                existing_data = self._read_json_file(file_path)
+                existing_points = existing_data.get("points", [])
+                existing_data["points"] = existing_points + points_data
+            else:
+                # Replace existing points with new points
+                existing_data["points"] = points_data
 
-            # Extend with new points and save combined data
-            existing_data["points"] = existing_points + points_data
             point_count = len(existing_data["points"])
             self._write_json_file(file_path, existing_data)
             print(f"Data successfully extended and saved to {file_path}.")
 
             # Update index after successful write
             if update_tracks_index:
-                self.update_tracks_index(track_id, point_count)
+                self.update_tracks_index(track_id, point_count, points_data[-1].get("Distance", 0.0))
             else:
                 # This is a live track. Update update.json live entry pointCount
                 update_data = self._read_json_file(self.update_file)
                 if "live" in update_data and update_data["live"]["id"] == track_id:
                     update_data["live"]["pointCount"] = point_count
+                    update_data["live"]["Distance"] = points_data[-1].get("Distance", 0.0)
                     self._write_json_file(self.update_file, update_data)
                 else:
                     print(f"Warning: Live track ID mismatch when updating point count for {track_id}.")
@@ -39,7 +43,10 @@ class DataExporter:
             print(f"Error extending data to {file_path}: {e}")
 
 
-    def update_tracks_index(self, track_id, point_count):
+    def update_tracks_index(self, track_id, point_count, distance=0.0):
+        """
+        Update the tracks index JSON file with the given track ID, point count, and track distance.
+        """
         try:
             index_data = self._read_json_file(self.tracks_file)
             tracks = index_data["tracks"] if "tracks" in index_data else []
@@ -52,14 +59,17 @@ class DataExporter:
                 track = self._get_track(track_id, tracks)
                 if track:
                     track["pointCount"] = point_count
+                    track["distance"] = distance
                 else:
-                    tracks.append({"id": track_id, "pointCount": point_count})
+                    tracks.append({"id": track_id, "pointCount": point_count, "Distance": distance})
                 index_data["tracks"] = tracks
 
+            # Sort index_data tracks by track ID
+            index_data["tracks"] = sorted(index_data["tracks"], key=lambda x: x["id"])
             self._write_json_file(self.tracks_file, index_data)
 
             # Update tracks entry in update.json to reflect last edit time of tracks.json
-            update_data = self._read_json_file(self.update_file)
+            update_data = self._read_json_file(self.update_file, default_value={"tracks": {"edited": None}})
             update_data["tracks"]["edited"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self._write_json_file(self.update_file, update_data)
             print(f"Tracks index updated in {self.tracks_file}.")
@@ -104,12 +114,13 @@ class DataExporter:
         if "live" in update_data:
             live_track_id = update_data["live"]["id"]
             live_track_point_count = update_data["live"]["pointCount"]
+            live_track_distance = update_data["live"].get("Distance", 0.0)
             print(f"Ending live track for {live_track_id} with {live_track_point_count} points.")
             # Remove live entry
             del update_data["live"]
             self._write_json_file(self.update_file, update_data)
             # Update entry in tracks.json
-            self.update_tracks_index(live_track_id, live_track_point_count)
+            self.update_tracks_index(live_track_id, live_track_point_count, live_track_distance)
             print("Live track ended.")
         else:
             print("No live track to end.")
