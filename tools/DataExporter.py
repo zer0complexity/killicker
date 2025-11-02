@@ -59,7 +59,7 @@ class DataExporter:
                 track = self._get_track(track_id, tracks)
                 if track:
                     track["pointCount"] = point_count
-                    track["distance"] = distance
+                    track["Distance"] = distance
                 else:
                     tracks.append({"id": track_id, "pointCount": point_count, "Distance": distance})
                 index_data["tracks"] = tracks
@@ -85,16 +85,19 @@ class DataExporter:
         tracks = index_data["tracks"] if "tracks" in index_data else []
 
         previous_point_count = 0
+        previous_distance = 0.0
         track = self._get_track(track_id, tracks)
         if track:
             previous_point_count = track["pointCount"]
+            previous_distance = track.get("Distance", 0.0)
 
         self.update_tracks_index(track_id, 0)
 
         update_data = {
             "live": {
                 "id": track_id,
-                "pointCount": previous_point_count
+                "pointCount": previous_point_count,
+                "Distance": previous_distance
             }
         }
         # Read existing update.json data to preserve other entries if any
