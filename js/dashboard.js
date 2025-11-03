@@ -118,11 +118,21 @@ export default class Dashboard {
         // Left column wrapper (wind + small tiles)
         const leftCol = document.createElement('div');
         leftCol.className = 'dashboard-left';
-        leftCol.appendChild(windWrap);
+    leftCol.appendChild(windWrap);
 
-        // Under-wind area: place SOG and Depth side-by-side under the instrument
-        const underWrap = document.createElement('div');
-        underWrap.className = 'under-wind';
+    // Small wind tiles (for responsive/mobile): AWA and AWS shown as tiles above SOG/Depth
+    const windTiles = document.createElement('div');
+    windTiles.className = 'wind-tiles';
+    this.tileAWA = document.createElement('div'); this.tileAWA.className = 'tile tile-awa';
+    this.tileAWA.innerHTML = `<div class="label">AWA</div><div class="val" id="awa-val">—</div>`;
+    windTiles.appendChild(this.tileAWA);
+    this.tileAWS = document.createElement('div'); this.tileAWS.className = 'tile tile-aws';
+    this.tileAWS.innerHTML = `<div class="label">AWS</div><div class="val" id="aws-tile-val">—</div>`;
+    windTiles.appendChild(this.tileAWS);
+
+    // Under-wind area: place SOG and Depth side-by-side under the instrument
+    const underWrap = document.createElement('div');
+    underWrap.className = 'under-wind';
 
     this.tileSOG = document.createElement('div'); this.tileSOG.className = 'tile tile-sog';
         this.tileSOG.innerHTML = `<div class="label">SOG</div><div class="val" id="sog-val">—</div>`;
@@ -131,7 +141,8 @@ export default class Dashboard {
         this.tileDepth.innerHTML = `<div class="label">Depth</div><div class="val" id="depth-val">—</div>`;
         underWrap.appendChild(this.tileDepth);
 
-        leftCol.appendChild(underWrap);
+    leftCol.appendChild(windTiles);
+    leftCol.appendChild(underWrap);
 
         // Bottom row: full-width Distance tile
         const bottom = document.createElement('div');
@@ -151,6 +162,9 @@ export default class Dashboard {
         this.sogNode = this.root.querySelector('#sog-val');
         this.depthNode = this.root.querySelector('#depth-val');
         this.distNode = this.root.querySelector('#dist-val');
+        // responsive wind tile nodes
+        this.awaNode = this.root.querySelector('#awa-val');
+        this.awsTileNode = this.root.querySelector('#aws-tile-val');
     }
 
     // AWA: degrees, positive to starboard (right) is conventional; we'll rotate arrow accordingly.
@@ -164,6 +178,10 @@ export default class Dashboard {
 
         if (typeof awaDeg === 'number') {
             // schedule awa animation
+            // remember the raw AWA value (preserves sign: negative = Port, positive = Stbd)
+            this._lastAwaRaw = awaDeg;
+            // update responsive AWA tile immediately from the raw value
+            if (this.awaNode) this.awaNode.textContent = this._formatAwaLabel(awaDeg);
             const start = (typeof this._currentAwa === 'number') ? this._currentAwa : awaDeg;
             // compute shortest rotation delta
             let delta = ((awaDeg - start + 540) % 360) - 180;
@@ -182,12 +200,27 @@ export default class Dashboard {
             else this._startAnimation('aws', (typeof this._currentAws === 'number') ? this._currentAws : aws, aws, duration * 0.8, (v) => this._applyAws(v));
         } else {
             this.awsNode.textContent = '—';
+            if (this.awsTileNode) this.awsTileNode.textContent = '—';
         }
+    }
+
+    _formatAwaLabel(val) {
+        if (typeof val !== 'number') return '—';
+        const rounded = Math.abs(Math.round(val));
+        let suffix = '';
+        if (val < 0) suffix = ' Port';
+        else if (val > 0) suffix = ' Stbd';
+        return `${rounded}°${suffix}`;
     }
 
     _setAwaImmediate(deg) {
         this._currentAwa = deg;
         this.arrowGroup.setAttribute('transform', `rotate(${deg})`);
+        // When immediate set is requested, prefer the last raw AWA value (preserves sign).
+        if (this.awaNode) {
+            if (typeof this._lastAwaRaw === 'number') this.awaNode.textContent = this._formatAwaLabel(this._lastAwaRaw);
+            else this.awaNode.textContent = `${Math.round(deg)}°`;
+        }
     }
 
     _applyAwa(v) {
@@ -195,16 +228,23 @@ export default class Dashboard {
         const norm = ((v % 360) + 360) % 360;
         this._currentAwa = norm;
         this.arrowGroup.setAttribute('transform', `rotate(${v})`);
+        // During animation prefer the last raw AWA value if available (keeps Port/Stbd suffix).
+        if (this.awaNode) {
+            if (typeof this._lastAwaRaw === 'number') this.awaNode.textContent = this._formatAwaLabel(this._lastAwaRaw);
+            else this.awaNode.textContent = `${Math.round(norm)}°`;
+        }
     }
 
     _setAwsImmediate(v) {
         this._currentAws = v;
         this.awsNode.textContent = `${v.toFixed(1)}`;
+        if (this.awsTileNode) this.awsTileNode.textContent = `${v.toFixed(1)} kn`;
     }
 
     _applyAws(v) {
         this._currentAws = v;
         this.awsNode.textContent = `${v.toFixed(1)}`;
+        if (this.awsTileNode) this.awsTileNode.textContent = `${v.toFixed(1)} kn`;
     }
 
     setSOG(knots, options = { animate: true, duration: 600 }) {

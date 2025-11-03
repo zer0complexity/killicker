@@ -90,6 +90,13 @@
 }
 .under-wind .tile { flex: 0 0 49%; width: 50%; min-width: 0; box-sizing: border-box; }
 
+/* Tiles that replace the wind instrument on narrow viewports */
+.wind-tiles {
+    display: none; /* shown only in responsive stacked layout */
+    gap: var(--dashboard-gap);
+}
+.wind-tiles .tile { box-sizing: border-box; }
+
 .dashboard-bottom {
     grid-area: bottom;
     display: flex;
@@ -146,6 +153,10 @@
     .dashboard-left, .dashboard-bottom {
         width: 100%;
     }
+    /* In responsive mode, hide the big SVG instrument and show small wind tiles */
+    .wind-instrument { display: none; }
+    .wind-tiles { display: flex; }
+    .wind-tiles .tile { width: 50%; }
     .under-wind { flex-wrap: nowrap; }
     .tile { flex: 1 1 0; }
 }
