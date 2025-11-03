@@ -72,12 +72,10 @@
     flex-direction: column;
     justify-content: center;
     align-items: stretch;
-    /* slightly reduced tile shadow for smaller look */
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
 
-/* New layout helpers for grid arrangement */
 .dashboard-left {
     grid-area: left;
     display: flex;
@@ -90,7 +88,7 @@
     gap: var(--dashboard-gap);
     align-items: stretch;
 }
-.under-wind .tile { flex: 0 0 50%; width: 50%; min-width: 0; box-sizing: border-box; }
+.under-wind .tile { flex: 0 0 49%; width: 50%; min-width: 0; box-sizing: border-box; }
 
 .dashboard-bottom {
     grid-area: bottom;
