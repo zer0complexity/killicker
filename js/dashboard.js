@@ -110,23 +110,39 @@ export default class Dashboard {
 
         windWrap.appendChild(svg);
         // don't render AWA text/value — gauge already shows heading
-        this.root.appendChild(windWrap);
 
-        // Tiles (SOG, Depth, Distance)
-        const tiles = document.createElement('div');
-        tiles.className = 'tiles';
+        // Build a two-column dashboard grid:
+        // left column: wind instrument with an under-wind row containing SOG and Depth side-by-side
+        // bottom row: Distance spanning full width
+
+        // Left column wrapper (wind + small tiles)
+        const leftCol = document.createElement('div');
+        leftCol.className = 'dashboard-left';
+        leftCol.appendChild(windWrap);
+
+        // Under-wind area: place SOG and Depth side-by-side under the instrument
+        const underWrap = document.createElement('div');
+        underWrap.className = 'under-wind';
 
     this.tileSOG = document.createElement('div'); this.tileSOG.className = 'tile tile-sog';
         this.tileSOG.innerHTML = `<div class="label">SOG</div><div class="val" id="sog-val">—</div>`;
-        tiles.appendChild(this.tileSOG);
+        underWrap.appendChild(this.tileSOG);
     this.tileDepth = document.createElement('div'); this.tileDepth.className = 'tile tile-depth';
         this.tileDepth.innerHTML = `<div class="label">Depth</div><div class="val" id="depth-val">—</div>`;
-        tiles.appendChild(this.tileDepth);
+        underWrap.appendChild(this.tileDepth);
+
+        leftCol.appendChild(underWrap);
+
+        // Bottom row: full-width Distance tile
+        const bottom = document.createElement('div');
+        bottom.className = 'dashboard-bottom';
     this.tileDist = document.createElement('div'); this.tileDist.className = 'tile tile-dist';
         this.tileDist.innerHTML = `<div class="label">Distance</div><div class="val" id="dist-val">—</div>`;
-        tiles.appendChild(this.tileDist);
+        bottom.appendChild(this.tileDist);
 
-        this.root.appendChild(tiles);
+        // Append left column and bottom row to the root. The CSS grid will place these appropriately.
+        this.root.appendChild(leftCol);
+        this.root.appendChild(bottom);
         this.container.appendChild(this.root);
 
         // references to numeric nodes

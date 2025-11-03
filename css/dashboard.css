@@ -8,11 +8,16 @@
 }
 
 .dashboard {
-    display: flex;
+    display: grid;
     --dashboard-gap: 3px;
     gap: var(--dashboard-gap);
-    /* split the dashboard horizontally: wind instrument on left, tiles on right */
-    align-items: stretch;
+    /* Grid: single-column layout (left = instrument + small tiles; bottom = distance full width) */
+    grid-template-columns: auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "left"
+        "bottom";
+    align-items: start;
     background: linear-gradient(180deg, #f8f9fb, #eef2f6);
     border-radius: 12px;
     /* slightly smaller padding and constrained width to keep the dashboard compact */
@@ -31,18 +36,16 @@
     align-items: center;
     justify-content: center;
     align-self: stretch;
+    /* keep the instrument square regardless of surrounding layout */
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    width: auto;
     padding: 6px;
     border-radius: 8px;
     background: linear-gradient(180deg, #ffffff, #f0f4f8);
     /* slightly reduced shadow to match smaller footprint */
     box-shadow: 0 10px 22px rgba(0,0,0,0.16), inset 0 2px 6px rgba(255,255,255,0.6);
     border: 1px solid rgba(0,0,0,0.08);
-}
-
-.wind-instrument svg {
-    /* fill the available half while preserving aspect ratio via preserveAspectRatio on the SVG element */
-    width: 100%;
-    height: 100%;
 }
 
 .wind-info {
@@ -85,6 +88,42 @@
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
+
+/* New layout helpers for grid arrangement */
+.dashboard-left {
+    grid-area: left;
+    display: flex;
+    flex-direction: column;
+    gap: var(--dashboard-gap);
+}
+
+.under-wind {
+    display: flex;
+    gap: var(--dashboard-gap);
+    align-items: stretch;
+}
+.under-wind .tile { flex: 0 0 50%; width: 50%; min-width: 0; box-sizing: border-box; }
+
+.dashboard-bottom {
+    grid-area: bottom;
+    display: flex;
+    width: 100%;
+}
+.dashboard-bottom .tile { width: 100%; }
+/* Make the Distance tile more compact: label and value on one line, same font-size, value bold */
+.dashboard-bottom .tile {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px; /* reduce vertical padding to shorten height */
+}
+.dashboard-bottom .tile .label,
+.dashboard-bottom .tile .val {
+    font-size: 14px; /* same size for both */
+}
+.dashboard-bottom .tile .label { opacity: 0.9; }
+.dashboard-bottom .tile .val { font-weight: 700; }
 /* align label and value text to the right inside tiles */
 .tile .label,
 .tile .val {
@@ -110,15 +149,18 @@
 /* Responsive layout: stack vertically on narrow viewports */
 @media (max-width: 760px) {
     .dashboard {
-        flex-direction: column;
+        /* switch to single-column grid so dashboard content stacks vertically */
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "left"
+            "bottom";
         --dashboard-gap: 8px;
         min-width: 200px;
     }
-    .wind-instrument, .tiles {
-        flex: 1 1 100%;
+    .dashboard-left, .dashboard-bottom {
         width: 100%;
     }
-    .tiles { flex-direction: row; }
+    .under-wind { flex-wrap: nowrap; }
     .tile { flex: 1 1 0; }
 }
 
@@ -126,7 +168,7 @@
 .wind-instrument svg {
     /* make the svg render as a circular instrument and add a pronounced bezel */
     display: block;
-    width: 100%;
+    width: auto;
     height: 100%;
     border-radius: 50%;
     overflow: visible;
