@@ -9,7 +9,7 @@
 
 .dashboard {
     display: flex;
-    --dashboard-gap: 12px;
+    --dashboard-gap: 4px;
     gap: var(--dashboard-gap);
     /* split the dashboard horizontally: wind instrument on left, tiles on right */
     align-items: stretch;
@@ -19,7 +19,7 @@
     min-width: 320px;
     /* stronger outer bezel shadow for a pronounced 3D look */
     box-shadow: 0 16px 40px rgba(0,0,0,0.28), 0 -3px 0 rgba(255,255,255,0.6) inset;
-    border: 1px solid rgba(0,0,0,0.12);
+    border: 2px solid rgba(0,0,0,0.12);
 }
 
 .wind-instrument {
@@ -63,7 +63,7 @@
     /* keep horizontal padding so tiles don't touch the dashboard edge,
        but remove vertical padding so the top of the first tile and
        bottom of the last tile align with the wind instrument edges */
-    padding: 0 var(--dashboard-gap);
+    /* padding: 0 var(--dashboard-gap); */
     box-sizing: border-box;
 }
 .tile {
@@ -93,7 +93,7 @@
     /* larger numeric text that fills ~90% of tile width and stays right-aligned */
     font-size: 22px;
     font-weight: 700;
-    width: 90%;
+    width: 95%;
     display: block;
     margin-left: auto;
     text-align: right;
