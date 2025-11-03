@@ -159,6 +159,23 @@
     .wind-tiles .tile { width: 50%; }
     .under-wind { flex-wrap: nowrap; }
     .tile { flex: 1 1 0; }
+
+    /* Place the dashboard container at the bottom of the viewport */
+    #dashboard-container {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        top: auto;
+        z-index: 1000;
+    }
+
+    .dashboard {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        border-radius: 10px;
+    }
 }
 
 /* ensure the SVG instrument has rounded corners and its own bezel */
