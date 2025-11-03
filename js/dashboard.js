@@ -1,0 +1,274 @@
+// Dashboard component: wind instrument (AWA/AWS) + numeric tiles (SOG, Depth, Distance)
+export default class Dashboard {
+    /**
+     * Create dashboard inside a container element (or selector string)
+     * @param {HTMLElement|string} containerOrSelector
+     */
+    constructor(containerOrSelector) {
+        this.container = typeof containerOrSelector === 'string'
+            ? document.querySelector(containerOrSelector)
+            : containerOrSelector;
+
+        if (!this.container) throw new Error('Dashboard container not found');
+
+        this._initDOM();
+
+        // current displayed values (numbers) and animation targets
+        this._currentAwa = 0; // degrees
+        this._currentAws = 0; // knots
+        this._currentSog = null; // knots
+
+        this._animations = new Map(); // name -> animation state
+        this._rafId = null;
+
+        // initialize displays
+        this.setWind(0, 0, { animate: false });
+        this.setSOG(null, { animate: false });
+        this.setDepth(null);
+        this.setDistance(null);
+    }
+
+    _initDOM() {
+        this.root = document.createElement('div');
+        this.root.className = 'dashboard';
+
+        // Wind instrument
+        const windWrap = document.createElement('div');
+        windWrap.className = 'wind-instrument';
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '-60 -60 120 120');
+    // ensure the SVG preserves aspect ratio when scaled to fill half the dashboard
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    // NOTE: SVG filter for needle shadow removed to avoid rendering issues in some browsers;
+    // we may re-add a more compatible shadow implementation later if needed.
+
+    // Use the original raster image as the instrument background (no bezel)
+    const img = document.createElementNS(svgNS, 'image');
+    img.setAttribute('href', 'images/wind-512x512.png');
+    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'images/wind-512x512.png');
+    img.setAttribute('x', '-60'); img.setAttribute('y', '-60'); img.setAttribute('width', '120'); img.setAttribute('height', '120');
+    svg.appendChild(img);
+
+    // arrow group (rotated according to AWA) — draw a shortened needle-style pointer
+    this.arrowGroup = document.createElementNS(svgNS, 'g');
+    this.arrowGroup.setAttribute('transform', 'rotate(0)');
+
+    // needle group: two shaft segments leaving a central gap so the AWS text is not overlapped
+    const needle = document.createElementNS(svgNS, 'g');
+    needle.setAttribute('class', 'needle');
+    // needle shadow intentionally omitted to avoid visibility issues
+
+    // define a slightly larger boundary circle around the AWS text; the needle will stop at this circle
+    const gapRadius = 18; // viewBox units — slightly larger gap around AWS number
+
+    // top shaft (from near the rim down toward the boundary)
+    const topShaft = document.createElementNS(svgNS, 'line');
+    topShaft.setAttribute('x1', '0'); topShaft.setAttribute('y1', '-46');
+    topShaft.setAttribute('x2', '0'); topShaft.setAttribute('y2', `${-gapRadius}`);
+    topShaft.setAttribute('stroke', '#ff9000'); topShaft.setAttribute('stroke-width', '2');
+    topShaft.setAttribute('stroke-linecap', 'round');
+    needle.appendChild(topShaft);
+
+    // no tail shaft: only the pointing side of the needle is drawn
+    this.arrowGroup.appendChild(needle);
+
+    // subtle boundary circle drawn around the AWS text so it's clear where the needle stops,
+    // but make it invisible (used only as a positioning guide)
+    const boundary = document.createElementNS(svgNS, 'circle');
+    boundary.setAttribute('cx', '0'); boundary.setAttribute('cy', '0'); boundary.setAttribute('r', `${gapRadius}`);
+    boundary.setAttribute('fill', 'none'); boundary.setAttribute('stroke', 'none'); boundary.setAttribute('stroke-width', '1');
+    svg.appendChild(this.arrowGroup);
+    svg.appendChild(boundary);
+
+    // AWS numeric text centered in the instrument (won't be overlapped by the needle gap)
+    const awsText = document.createElementNS(svgNS, 'text');
+    awsText.setAttribute('id', 'aws-svg-val');
+    awsText.setAttribute('x', '0');
+    awsText.setAttribute('y', '-2');
+    awsText.setAttribute('text-anchor', 'middle');
+    awsText.setAttribute('dominant-baseline', 'middle');
+    awsText.setAttribute('fill', '#111');
+    awsText.setAttribute('font-size', '12');
+    awsText.setAttribute('font-weight', '700');
+    awsText.textContent = '0.0';
+    svg.appendChild(awsText);
+
+    // units text underneath the numeric AWS value
+    const awsUnit = document.createElementNS(svgNS, 'text');
+    awsUnit.setAttribute('id', 'aws-svg-unit');
+    awsUnit.setAttribute('x', '0');
+    awsUnit.setAttribute('y', '12');
+    awsUnit.setAttribute('text-anchor', 'middle');
+    awsUnit.setAttribute('dominant-baseline', 'middle');
+    awsUnit.setAttribute('fill', '#666');
+    awsUnit.setAttribute('font-size', '9');
+    awsUnit.textContent = 'kn';
+    svg.appendChild(awsUnit);
+
+        windWrap.appendChild(svg);
+        // don't render AWA text/value — gauge already shows heading
+        this.root.appendChild(windWrap);
+
+        // Tiles (SOG, Depth, Distance)
+        const tiles = document.createElement('div');
+        tiles.className = 'tiles';
+
+    this.tileSOG = document.createElement('div'); this.tileSOG.className = 'tile tile-sog';
+        this.tileSOG.innerHTML = `<div class="label">SOG</div><div class="val" id="sog-val">—</div>`;
+        tiles.appendChild(this.tileSOG);
+    this.tileDepth = document.createElement('div'); this.tileDepth.className = 'tile tile-depth';
+        this.tileDepth.innerHTML = `<div class="label">Depth</div><div class="val" id="depth-val">—</div>`;
+        tiles.appendChild(this.tileDepth);
+    this.tileDist = document.createElement('div'); this.tileDist.className = 'tile tile-dist';
+        this.tileDist.innerHTML = `<div class="label">Distance</div><div class="val" id="dist-val">—</div>`;
+        tiles.appendChild(this.tileDist);
+
+        this.root.appendChild(tiles);
+        this.container.appendChild(this.root);
+
+        // references to numeric nodes
+        // AWS is drawn inside the SVG so select it there
+        this.awsNode = svg.querySelector('#aws-svg-val');
+        this.sogNode = this.root.querySelector('#sog-val');
+        this.depthNode = this.root.querySelector('#depth-val');
+        this.distNode = this.root.querySelector('#dist-val');
+    }
+
+    // AWA: degrees, positive to starboard (right) is conventional; we'll rotate arrow accordingly.
+    /**
+     * Set apparent wind angle (degrees) and speed (knots).
+     * Options: { animate: true|false, duration: ms }
+     */
+    setWind(awaDeg, aws, options = { animate: true, duration: 600 }) {
+        const animate = options.animate !== false;
+        const duration = (typeof options.duration === 'number') ? options.duration : 600;
+
+        if (typeof awaDeg === 'number') {
+            // schedule awa animation
+            const start = (typeof this._currentAwa === 'number') ? this._currentAwa : awaDeg;
+            // compute shortest rotation delta
+            let delta = ((awaDeg - start + 540) % 360) - 180;
+            const end = start + delta;
+            if (!animate) {
+                this._setAwaImmediate(awaDeg);
+            } else {
+                this._startAnimation('awa', start, end, duration, (v) => this._applyAwa(v));
+            }
+        } else {
+            // no DOM AWA display; leave needle as-is
+        }
+
+        if (typeof aws === 'number') {
+            if (!animate) this._setAwsImmediate(aws);
+            else this._startAnimation('aws', (typeof this._currentAws === 'number') ? this._currentAws : aws, aws, duration * 0.8, (v) => this._applyAws(v));
+        } else {
+            this.awsNode.textContent = '—';
+        }
+    }
+
+    _setAwaImmediate(deg) {
+        this._currentAwa = deg;
+        this.arrowGroup.setAttribute('transform', `rotate(${deg})`);
+    }
+
+    _applyAwa(v) {
+        // v is numeric degrees, may be outside 0-360; normalize display
+        const norm = ((v % 360) + 360) % 360;
+        this._currentAwa = norm;
+        this.arrowGroup.setAttribute('transform', `rotate(${v})`);
+    }
+
+    _setAwsImmediate(v) {
+        this._currentAws = v;
+        this.awsNode.textContent = `${v.toFixed(1)}`;
+    }
+
+    _applyAws(v) {
+        this._currentAws = v;
+        this.awsNode.textContent = `${v.toFixed(1)}`;
+    }
+
+    setSOG(knots, options = { animate: true, duration: 600 }) {
+        const animate = options.animate !== false;
+        const duration = (typeof options.duration === 'number') ? options.duration : 600;
+        if (typeof knots === 'number') {
+            const start = (typeof this._currentSog === 'number') ? this._currentSog : knots;
+            if (!animate) this._setSogImmediate(knots);
+            else this._startAnimation('sog', start, knots, duration, (v) => this._applySog(v));
+        } else {
+            this.sogNode.textContent = '—';
+            this._currentSog = null;
+        }
+    }
+
+    _setSogImmediate(v) {
+        this._currentSog = v;
+        this.sogNode.textContent = `${v.toFixed(1)} kn`;
+    }
+
+    _applySog(v) {
+        this._currentSog = v;
+        this.sogNode.textContent = `${v.toFixed(1)} kn`;
+    }
+
+    // Animation engine (rAF)
+    _startAnimation(name, start, end, duration, onUpdate, onComplete) {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        // initialize animation state
+        this._animations.set(name, {
+            startTime: now,
+            duration: Math.max(0, duration || 0),
+            start: start,
+            end: end,
+            onUpdate: onUpdate,
+            onComplete: onComplete || null
+        });
+        if (!this._rafId) {
+            this._rafId = requestAnimationFrame(this._tick.bind(this));
+        }
+    }
+
+    _tick(ts) {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (this._animations.size === 0) {
+            this._rafId = null;
+            return;
+        }
+
+        // easing
+        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+        for (const [name, anim] of Array.from(this._animations.entries())) {
+            const { startTime, duration, start, end, onUpdate, onComplete } = anim;
+            const elapsed = now - startTime;
+            const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+            const eased = easeOutCubic(t);
+            const value = start + (end - start) * eased;
+            try { onUpdate(value); } catch (e) { console.error('Animation onUpdate error', e); }
+            if (t >= 1) {
+                this._animations.delete(name);
+                if (onComplete) {
+                    try { onComplete(); } catch (e) { console.error('Animation onComplete error', e); }
+                }
+            }
+        }
+
+        if (this._animations.size > 0) this._rafId = requestAnimationFrame(this._tick.bind(this));
+        else this._rafId = null;
+    }
+
+    setDepth(meters) {
+        this.depthNode.textContent = (typeof meters === 'number') ? `${meters.toFixed(1)} m` : '—';
+    }
+
+    setDistance(km) {
+        // display in km if > 1, otherwise in m
+        if (typeof km === 'number') {
+            if (km >= 1) this.distNode.textContent = `${km.toFixed(2)} km`;
+            else this.distNode.textContent = `${Math.round(km * 1000)} m`;
+        } else this.distNode.textContent = '—';
+    }
+}

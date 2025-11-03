@@ -1,5 +1,6 @@
 import Logger from './logger.js';
 import MapMenu from './mapMenu.js';
+import Dashboard from './dashboard.js';
 import TrackManager from './trackManager.js';
 import TrackView from './trackView.js';
 
@@ -172,4 +173,18 @@ initMap().then(async (m) => {
     trackManager.registerLiveTrackListener((liveTrackId) => {
         menu.setLiveTrack(liveTrackId !== null, liveTrackId);
     });
+
+    // Create dashboard overlay (wind instrument + numeric tiles)
+    try {
+        const dashboard = new Dashboard('#dashboard-container');
+        // Demo values; other modules can call these setters at runtime
+        dashboard.setWind(45, 12.3);
+        dashboard.setSOG(5.6);
+        dashboard.setDepth(8.2);
+        dashboard.setDistance(2.34);
+        // expose for console/debugging
+        window.dashboard = dashboard;
+    } catch (err) {
+        console.warn('Failed to initialize Dashboard:', err);
+    }
 });

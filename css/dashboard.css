@@ -1,0 +1,143 @@
+/* Dashboard styles: positioned overlay with compact tiles and wind instrument */
+#dashboard-container {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+.dashboard {
+    display: flex;
+    --dashboard-gap: 12px;
+    gap: var(--dashboard-gap);
+    /* split the dashboard horizontally: wind instrument on left, tiles on right */
+    align-items: stretch;
+    background: linear-gradient(180deg, #f8f9fb, #eef2f6);
+    border-radius: 12px;
+    padding: var(--dashboard-gap);
+    min-width: 320px;
+    /* stronger outer bezel shadow for a pronounced 3D look */
+    box-shadow: 0 16px 40px rgba(0,0,0,0.28), 0 -3px 0 rgba(255,255,255,0.6) inset;
+    border: 1px solid rgba(0,0,0,0.12);
+}
+
+.wind-instrument {
+    /* take ~75% of the dashboard width on wide screens */
+    flex: 3 1 75%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    padding: 8px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffffff, #f0f4f8);
+    /* stronger bezel around the instrument: subtle rounded border + deeper shadow */
+    box-shadow: 0 12px 28px rgba(0,0,0,0.18), inset 0 2px 6px rgba(255,255,255,0.6);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+.wind-instrument svg {
+    /* fill the available half while preserving aspect ratio via preserveAspectRatio on the SVG element */
+    width: 100%;
+    height: 100%;
+}
+
+.wind-info {
+    text-align: center;
+    font-size: 12px;
+}
+.wind-info .value { font-weight: 700; font-size: 18px; }
+
+.tiles {
+    /* make tiles container visually transparent so gaps show the dashboard background
+       and individual tiles have their own rounded backgrounds */
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    /* occupy the right column and stretch to match the instrument height; slightly wider -> more room */
+    flex: 1 1 30%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--dashboard-gap);
+    /* keep horizontal padding so tiles don't touch the dashboard edge,
+       but remove vertical padding so the top of the first tile and
+       bottom of the last tile align with the wind instrument edges */
+    padding: 0 var(--dashboard-gap);
+    box-sizing: border-box;
+}
+.tile {
+    /* unified numeric displays: off-white to light-grey bezel and black text */
+    background: linear-gradient(180deg, #ffffff, #eeeeee);
+    color: #000;
+    padding: 10px;
+    border-radius: 8px;
+    min-width: 110px;
+    /* make tiles evenly share the available height */
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    /* stronger tile bezel and shadow for visual lift */
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+}
+/* align label and value text to the right inside tiles */
+.tile .label,
+.tile .val {
+    text-align: right;
+}
+.tile .label { font-size: 11px; opacity: 0.9; }
+.tile .val {
+    /* larger numeric text that fills ~90% of tile width and stays right-aligned */
+    font-size: 22px;
+    font-weight: 700;
+    width: 90%;
+    display: block;
+    margin-left: auto;
+    text-align: right;
+    box-sizing: border-box;
+}
+
+@media (max-width: 520px) {
+    .dashboard { padding: 8px; --dashboard-gap: 8px; }
+    #dashboard-container { left: 8px; right: 8px; top: 8px; }
+}
+
+/* Responsive layout: stack vertically on narrow viewports */
+@media (max-width: 760px) {
+    .dashboard {
+        flex-direction: column;
+        --dashboard-gap: 8px;
+        min-width: 240px;
+    }
+    .wind-instrument, .tiles {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    .tiles { flex-direction: row; }
+    .tile { flex: 1 1 0; }
+}
+
+/* ensure the SVG instrument has rounded corners and its own bezel */
+.wind-instrument svg {
+    /* make the svg render as a circular instrument and add a pronounced bezel */
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: visible;
+    /* stronger outer shadow and brighter inset highlight for a metallic look */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.16), inset 0 3px 8px rgba(255,255,255,0.9);
+    border: 2px solid rgba(255,255,255,0.75);
+}
+
+/* subtle cross-browser CSS drop-shadow applied to the SVG needle group */
+.wind-instrument svg .needle {
+    /* stronger layered drop-shadows: a soft large halo, a tighter darker shadow,
+       plus a subtle warm rim/glow to match the needle color */
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.40))
+            drop-shadow(0 2px 4px rgba(0,0,0,0.55))
+            drop-shadow(0 0 6px rgba(255,144,0,0.28));
+}
