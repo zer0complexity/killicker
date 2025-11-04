@@ -17,7 +17,7 @@ const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
  * @param {boolean} centerMap - Whether to center the map on the first point
  * @returns {Promise<Object>} Promise of { trackView, trackId, unregister }
  */
-async function createTrackView(trackId, trackColour, centerMap = false) {
+async function createTrackView(trackId, trackColour, centerMap = false, dashboard) {
     if (!map) {
         throw new Error('createTrackView called before map initialization; call after initMap completes');
     }
@@ -25,7 +25,7 @@ async function createTrackView(trackId, trackColour, centerMap = false) {
         throw new Error('createTrackView called before TrackManager initialization');
     }
 
-    const tv = new TrackView(map, trackColour, centerMap);
+    const tv = new TrackView(map, trackColour, centerMap, dashboard);
 
     // Register a listener so TrackView receives initial and subsequent updates
     const unregister = await trackManager.registerListener(trackId, (points) => {
@@ -117,10 +117,10 @@ initMap().then(async (m) => {
     };
 
     // Helpers to activate/deactivate a track view and keep menu swatch in sync
-    const activateTrack = async (trackId, explicitColour, centerMap) => {
+    const activateTrack = async (trackId, explicitColour, centerMap, dashboard=null) => {
         if (!trackId || activeTrackViews.has(trackId)) return;
         const colour = explicitColour || getTrackColour(trackId);
-        await createTrackView(trackId, colour, centerMap);
+        await createTrackView(trackId, colour, centerMap, dashboard);
         menu.setTrackSwatch(trackId, colour);
         menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
     };
@@ -154,8 +154,10 @@ initMap().then(async (m) => {
                 if (!liveTrackId) return;
                 try {
                     if (checked) {
+                        // Create dashboard overlay (wind instrument + numeric tiles)
+                        // const dashboard = new Dashboard('#dashboard-container');
                         // Live track always centers map on activation
-                        await activateTrack(liveTrackId, liveTrackColour, true);
+                        await activateTrack(liveTrackId, liveTrackColour, true, dashboard);
                     } else {
                         deactivateTrack(liveTrackId);
                     }
@@ -173,18 +175,4 @@ initMap().then(async (m) => {
     trackManager.registerLiveTrackListener((liveTrackId) => {
         menu.setLiveTrack(liveTrackId !== null, liveTrackId);
     });
-
-    // Create dashboard overlay (wind instrument + numeric tiles)
-    try {
-        const dashboard = new Dashboard('#dashboard-container');
-        // Demo values; other modules can call these setters at runtime
-        dashboard.setWind(45, 12.3);
-        dashboard.setSOG(5.6);
-        dashboard.setDepth(8.2);
-        dashboard.setDistance(2.34);
-        // expose for console/debugging
-        window.dashboard = dashboard;
-    } catch (err) {
-        console.warn('Failed to initialize Dashboard:', err);
-    }
 });
