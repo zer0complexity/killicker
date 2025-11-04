@@ -1,3 +1,5 @@
+import UnitManager from './unitManager.js';
+
 // Dashboard component: wind instrument (AWA/AWS) + numeric tiles (SOG, Depth, Distance)
 export default class Dashboard {
     /**
@@ -22,10 +24,10 @@ export default class Dashboard {
         this._rafId = null;
 
         // initialize displays
-        this.setWind(0, 0, { animate: false });
-        this.setSOG(null, { animate: false });
-        this.setDepth(null);
-        this.setDistance(null);
+        this.setWind(0, 0, 0);
+        this.setSOG(0, 0);
+        this.setDepth(0);
+        this.setDistance(0);
     }
 
     _initDOM() {
@@ -167,40 +169,71 @@ export default class Dashboard {
         this.awsTileNode = this.root.querySelector('#aws-tile-val');
     }
 
-    // AWA: degrees, positive to starboard (right) is conventional; we'll rotate arrow accordingly.
     /**
-     * Set apparent wind angle (degrees) and speed (knots).
-     * Options: { animate: true|false, duration: ms }
+     * Set apparent wind angle (radians) and speed (m/s).
+     * AWA: radians, positive to starboard, negative to port
+     * AWS: m/s
+     * @param {number} awa
+     * @param {number} aws
+     * @param {number} duration - Animation duration in ms (default 600ms)
      */
-    setWind(awaDeg, aws, options = { animate: true, duration: 600 }) {
-        const animate = options.animate !== false;
-        const duration = (typeof options.duration === 'number') ? options.duration : 600;
-
-        if (typeof awaDeg === 'number') {
+    setWind(awa, aws, duration=600) {
+        if (typeof awa === 'number') {
             // schedule awa animation
             // remember the raw AWA value (preserves sign: negative = Port, positive = Stbd)
-            this._lastAwaRaw = awaDeg;
+            this._lastAwaRaw = awa;
+            const awaDeg = (awa * (180 / Math.PI)); // convert to degrees
             // update responsive AWA tile immediately from the raw value
-            if (this.awaNode) this.awaNode.textContent = this._formatAwaLabel(awaDeg);
-            const start = (typeof this._currentAwa === 'number') ? this._currentAwa : awaDeg;
+            if (this.awaNode) {
+                this.awaNode.textContent = this._formatAwaLabel(awaDeg);
+            }
+            const start = (typeof this._currentAwa === 'number') ? this._currentAwa : awa;
             // compute shortest rotation delta
             let delta = ((awaDeg - start + 540) % 360) - 180;
             const end = start + delta;
-            if (!animate) {
-                this._setAwaImmediate(awaDeg);
-            } else {
-                this._startAnimation('awa', start, end, duration, (v) => this._applyAwa(v));
-            }
+            this._startAnimation('awa', start, end, duration, (v) => this._applyAwa(v));
         } else {
             // no DOM AWA display; leave needle as-is
         }
 
         if (typeof aws === 'number') {
-            if (!animate) this._setAwsImmediate(aws);
-            else this._startAnimation('aws', (typeof this._currentAws === 'number') ? this._currentAws : aws, aws, duration * 0.8, (v) => this._applyAws(v));
+            this._startAnimation('aws', (typeof this._currentAws === 'number') ? this._currentAws : aws, aws, duration * 0.8, (v) => this._applyAws(v));
         } else {
-            this.awsNode.textContent = '—';
-            if (this.awsTileNode) this.awsTileNode.textContent = '—';
+            // this.awsNode.textContent = '—';
+            // if (this.awsTileNode) this.awsTileNode.textContent = '—';
+        }
+    }
+
+    setDepth(meters) {
+        if (typeof meters === 'number') {
+            const convertedValue = UnitManager.convertValue("Depth", meters);
+            this.depthNode.textContent = `${convertedValue.value} ${convertedValue.unit}`;
+        } else {
+            // this.depthNode.textContent = '—';
+        }
+    }
+
+    setDistance(meters) {
+        // display in km if > 1, otherwise in m
+        if (typeof meters === 'number') {
+            const convertedValue = UnitManager.convertValue("Distance", meters);
+            this.distNode.textContent = `${convertedValue.value} ${convertedValue.unit}`;
+        } else {
+            // this.distNode.textContent = '—';
+        }
+    }
+
+    setSOG(mps, duration=600) {
+        if (typeof mps === 'number') {
+            const start = this._currentSog ? this._currentSog : mps;
+            this._startAnimation('sog', start, mps, duration, (v) => {
+                this._currentSog = v;
+                const convertedValue = UnitManager.convertValue("SOG", v);
+                this.sogNode.textContent = `${convertedValue.value} ${convertedValue.unit}`;
+            });
+        } else {
+            // this.sogNode.textContent = '—';
+            // this._currentSog = null;
         }
     }
 
@@ -247,29 +280,6 @@ export default class Dashboard {
         if (this.awsTileNode) this.awsTileNode.textContent = `${v.toFixed(1)} kn`;
     }
 
-    setSOG(knots, options = { animate: true, duration: 600 }) {
-        const animate = options.animate !== false;
-        const duration = (typeof options.duration === 'number') ? options.duration : 600;
-        if (typeof knots === 'number') {
-            const start = (typeof this._currentSog === 'number') ? this._currentSog : knots;
-            if (!animate) this._setSogImmediate(knots);
-            else this._startAnimation('sog', start, knots, duration, (v) => this._applySog(v));
-        } else {
-            this.sogNode.textContent = '—';
-            this._currentSog = null;
-        }
-    }
-
-    _setSogImmediate(v) {
-        this._currentSog = v;
-        this.sogNode.textContent = `${v.toFixed(1)} kn`;
-    }
-
-    _applySog(v) {
-        this._currentSog = v;
-        this.sogNode.textContent = `${v.toFixed(1)} kn`;
-    }
-
     // Animation engine (rAF)
     _startAnimation(name, start, end, duration, onUpdate, onComplete) {
         const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -314,17 +324,5 @@ export default class Dashboard {
 
         if (this._animations.size > 0) this._rafId = requestAnimationFrame(this._tick.bind(this));
         else this._rafId = null;
-    }
-
-    setDepth(meters) {
-        this.depthNode.textContent = (typeof meters === 'number') ? `${meters.toFixed(1)} m` : '—';
-    }
-
-    setDistance(km) {
-        // display in km if > 1, otherwise in m
-        if (typeof km === 'number') {
-            if (km >= 1) this.distNode.textContent = `${km.toFixed(2)} km`;
-            else this.distNode.textContent = `${Math.round(km * 1000)} m`;
-        } else this.distNode.textContent = '—';
     }
 }
