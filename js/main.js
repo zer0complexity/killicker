@@ -1,6 +1,5 @@
 import Logger from './logger.js';
 import MapMenu from './mapMenu.js';
-import Dashboard from './dashboard.js';
 import TrackManager from './trackManager.js';
 import TrackView from './trackView.js';
 
