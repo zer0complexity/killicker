@@ -17,8 +17,7 @@
     <!-- Dashboard overlay -->
     <div id="dashboard-container" aria-label="Dashboard">
         <!-- NavDashboard: small top-right anchored navigation dashboard -->
-        <nav class="nav-dashboard" role="navigation">
-            <button class="nav-toggle" title="Toggle dashboard">▣</button>
+        <nav id="nav-dashboard" class="nav-dashboard" role="navigation">
             <div class="nav-grid">
                 <div class="nav-square tile-1">1</div>
                 <div class="nav-square tile-2">2</div>
@@ -26,6 +25,12 @@
                 <div class="nav-square tile-4">4</div>
             </div>
         </nav>
+        <!-- Toggle moved out of the nav for easier positioning and layering -->
+        <button class="nav-toggle" title="Toggle dashboard" aria-expanded="true" aria-controls="nav-dashboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M8 4l8 8-8 8" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </button>
     </div>
 
     <script src="js/loader.js"></script>
