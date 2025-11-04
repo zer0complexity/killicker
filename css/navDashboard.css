@@ -115,7 +115,9 @@
 
 /* If the viewport is too narrow for the fixed vw/vh sizing, scale the dashboard down slightly */
 @media (max-width: 420px), (max-height: 320px) {
-    #dashboard-container { right: var(--nav-toggle-hit); bottom: 0px; }
+    /* reduce toggle hit width to about half on very small viewports */
+    :root { --nav-toggle-hit: 22px; }
+    #dashboard-container { right: calc(var(--nav-toggle-hit)); bottom: 0px; }
     .nav-dashboard {
         height: -moz-fit-content;
         height: fit-content;
@@ -125,7 +127,11 @@
     }
     .nav-square { border-radius: 4px; }
     .nav-toggle {
-        height: 88px; /* visual height equals dashboard height */
+        /* reduce the hit-size/min-width in responsive mode and keep the visual height consistent */
+        min-width: 22px;
+        padding-left: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+        padding-right: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+        height: calc(var(--dash-h) - 12px);
     }
 }
 
