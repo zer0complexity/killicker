@@ -19,11 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function setCollapsed(collapsed) {
         if (collapsed) {
             dashboard.classList.add('collapsed');
-            btn.setAttribute('aria-expanded', 'false');
             localStorage.setItem(key, 'true');
         } else {
             dashboard.classList.remove('collapsed');
-            btn.setAttribute('aria-expanded', 'true');
             localStorage.setItem(key, 'false');
         }
     }
