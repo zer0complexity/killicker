@@ -10,10 +10,13 @@
 
 .nav-dashboard {
     /* make the dashboard a single-row, four-column grid of perfect squares
-       height is the driving dimension; width will fit the squares */
-    width: -moz-fit-content;
-    width: fit-content;
-    height: 15vh; /* viewport height is the controlling size */
+       We compute a cell size from the dashboard height so width can be explicit.
+       This lets width and height animate together smoothly when collapsing. */
+    --dash-h: 15vh;
+    --cell-size: calc(var(--dash-h) - (2 * var(--nd-gap)));
+    height: var(--dash-h); /* controlling size */
+    /* total width = 4 * cell + 3 * gap + 2 * padding (padding == gap) => 4*cell + 5*gap */
+    width: calc((var(--cell-size) * 4) + (var(--nd-gap) * 5));
     box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(4, auto);
@@ -28,7 +31,8 @@
     color: #111;
     overflow: hidden; /* ensure no scrollbars inside */
     position: relative;
-    transition: width 540ms ease, height 240ms ease, transform 240ms ease;
+    transition: width 320ms cubic-bezier(.2,.8,.2,1), height 320ms cubic-bezier(.2,.8,.2,1), transform 240ms ease;
+    transform-origin: bottom right;
 }
 
 .nav-grid { display: contents; }
@@ -50,6 +54,15 @@
     overflow: hidden;
 }
 
+/* animate inner cells (smoother collapse) */
+.nav-grid > * {
+    transition: opacity 220ms ease, transform 220ms ease;
+    will-change: opacity, transform;
+    position: relative;
+    z-index: 1; /* keep inner cells beneath the toggle */
+}
+
+
 /* Toggle button */
 .nav-toggle {
     position: absolute;
@@ -66,6 +79,7 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.12);
     cursor: pointer;
     font-size: 18px;
+    z-index: 999; /* ensure the toggle sits above the grid cells */
 }
 
 .nav-dashboard.collapsed {
@@ -75,7 +89,12 @@
     border-radius: 8px;
 }
 
-.nav-dashboard.collapsed .nav-grid { display: none; }
+/* Don't hide children immediately; fade & scale them so width shrinks smoothly together with height */
+.nav-dashboard.collapsed .nav-grid > * {
+    opacity: 0;
+    transform: scale(0.78);
+    pointer-events: none;
+}
 
 .nav-dashboard.collapsed .nav-toggle { right: 6px; bottom: 6px; }
 
