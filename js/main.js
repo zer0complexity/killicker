@@ -157,7 +157,7 @@ initMap().then(async (m) => {
                         // Create dashboard overlay (wind instrument + numeric tiles)
                         // const dashboard = new Dashboard('#dashboard-container');
                         // Live track always centers map on activation
-                        await activateTrack(liveTrackId, liveTrackColour, true, dashboard);
+                        await activateTrack(liveTrackId, liveTrackColour, true);//, dashboard);
                     } else {
                         deactivateTrack(liveTrackId);
                     }
