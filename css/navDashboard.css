@@ -1,0 +1,119 @@
+/* NavDashboard: anchored small dashboard at top-right
+   - overall size: 20% of viewport width, 30% of viewport height
+   - grid: 2 columns (95% / 5%)
+   - left column: 3 stacked squares of equal size
+   - background: vertical gradient from off-white to grey
+*/
+
+:root { --nd-gap: 6px; }
+
+.nav-dashboard {
+    /* size relative to viewport */
+    width: 20vw;               /* 20% of window width */
+    height: 40vh;              /* 40% of window height */
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 95% 5%;
+    grid-template-rows: 1fr;
+    gap: var(--nd-gap);
+    padding: var(--nd-gap);
+    background: linear-gradient(180deg, #fbfbfb 0%, #d6d6d8 100%); /* off-white -> grey */
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+    border: 1px solid rgba(0,0,0,0.08);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    color: #111;
+    overflow: hidden; /* ensure no scrollbars inside */
+    position: relative;
+    transition: width 240ms ease, height 240ms ease, transform 200ms ease;
+}
+
+.nav-grid { display: contents; }
+
+.nav-left {
+    grid-column: 1 / 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--nd-gap);
+    align-items: stretch;
+    justify-content: flex-start;
+    height: 100%;
+}
+
+.nav-square {
+    width: 100%;
+    /* keep squares sized to available space and ensure three fit without scrolling */
+    flex: 0 0 calc((100% - (2 * var(--nd-gap))) / 3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #ffffff, #efefef);
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.nav-right {
+    grid-column: 2 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.nav-strip {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.0), rgba(0,0,0,0.06));
+    border-radius: 4px;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+/* Toggle button */
+.nav-toggle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.nav-dashboard.collapsed {
+    width: 48px !important;
+    height: 48px !important;
+    padding: 6px;
+    border-radius: 8px;
+}
+
+.nav-dashboard.collapsed .nav-left,
+.nav-dashboard.collapsed .nav-right,
+.nav-dashboard.collapsed .nav-grid { display: none; }
+
+.nav-dashboard.collapsed .nav-toggle { right: 6px; top: 6px; }
+
+/* If the viewport is too narrow for the fixed vw/vh sizing, scale the dashboard down slightly */
+@media (max-width: 420px), (max-height: 320px) {
+    .nav-dashboard { width: 28vw; height: 32vh; padding: 4px; gap: 4px; }
+    .nav-square { border-radius: 4px; }
+}
+
+/* On very small screens, keep the dashboard off to the side to avoid covering main content */
+@media (max-width: 360px) {
+    .nav-dashboard { display: none; }
+}
