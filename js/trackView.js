@@ -26,12 +26,13 @@ export default class TrackView {
         return TrackView.arrowSvgCache.replace(/FILL_COLOR/g, colour);
     }
 
-    constructor(map, trackColour, centerMap) {
+    constructor(map, trackColour, centerMap, dashboard=null) {
         this.map = map;
         this.trackColour = trackColour;
         this.trackPoints = [];
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
+        this.dashboard = dashboard;
         this.prevPointData = null;
         this.centerMap = centerMap;
 
@@ -142,6 +143,12 @@ export default class TrackView {
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {
                 this.markers.push(this.placeMarker(element, arrowSvg));
+            }
+            if (this.dashboard) {
+                this.dashboard.setWind(element.AWA, element.AWS);
+                this.dashboard.setSOG(element.SOG);
+                this.dashboard.setDepth(element.Depth);
+                this.dashboard.setDistance(element.Distance);
             }
         });
     }
