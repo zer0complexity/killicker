@@ -24,7 +24,7 @@
     grid-auto-rows: 1fr; /* one row that fills available height */
     gap: var(--nd-gap);
     padding: var(--nd-gap);
-    background: linear-gradient(180deg, #fbfbfb 0%, #d6d6d8 100%); /* off-white -> grey */
+    background: linear-gradient(45deg, #fbfbfb 0%, #a6a6a8 100%); /* off-white -> grey */
     border-radius: 8px;
     box-shadow: 0 8px 18px rgba(0,0,0,0.18);
     border: 1px solid rgba(0,0,0,0.08);
@@ -122,12 +122,28 @@
 
 .nav-square .wind-speed {
     position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     font-weight: 700;
     color: #f0f0f0;
     padding: 4px 6px;
     border-radius: 6px;
     font-size: 5cqh;
     text-align: center;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.nav-square .wind-speed-units {
+    position: absolute;
+    top: 65%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5cqh;
+    color: #f0f0f0;
+    font-weight: 400;
+    margin-left: 2px;
     pointer-events: none;
     z-index: 3;
 }
@@ -155,9 +171,9 @@
     align-items: center;
     justify-content: center;
     border-radius: 6px 0 0 6px; /* rounded on the left edge only */
-    border: 1px solid rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.28);
     background: rgba(255,255,255,0.98);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.82);
     box-sizing: border-box;
     cursor: pointer;
     font-size: 14px;
@@ -228,7 +244,12 @@
     }
 
     .nav-square .wind-speed {
-        font-size: 4cqh;
+        font-size: 3.5cqh;
+    }
+
+    .nav-square .wind-speed-units {
+        top: 70%;
+        font-size: 1.5cqh;
     }
 
     .nav-square { border-radius: 4px; }
