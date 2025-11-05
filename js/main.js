@@ -129,6 +129,15 @@ initMap().then(async (m) => {
         await createTrackView(trackId, colour, centerMap, dashboard);
         menu.setTrackSwatch(trackId, colour);
         menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
+        if (dashboard && typeof dashboard.hide === 'function') {
+            // Register a listener for live track updates to hide the dashboard when deactivated
+            trackManager.registerLiveTrackListener((liveTrackId) => {
+                if (liveTrackId === null) {
+                    console.log('Hiding NavDashboard from main.js as live track was deactivated: trackId=', liveTrackId);
+                    dashboard.hide();
+                }
+            });
+        }
     };
     const deactivateTrack = (trackId) => {
         if (!trackId) return;
