@@ -47,7 +47,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #404040, #a0a0a0);
+    background: linear-gradient(-45deg, #404040, #a0a0a0);
     border-radius: 6px;
     border: 1px solid rgba(0,0,0,0.06);
     box-shadow: 0 6px 12px rgba(0,0,0,0.08);
@@ -64,6 +64,7 @@
     flex-direction: column;
     padding: 6px 8px;
     box-sizing: border-box;
+    color: #ffffff;
 }
 .stat-tile .stat-title {
     position: absolute;
@@ -71,6 +72,7 @@
     left: 8px;
     font-size: 12px;
     opacity: 0.9;
+    font-size: 2cqh;
 }
 .stat-tile .stat-value {
     /* occupies 40% of the available height and is right-justified */
@@ -82,6 +84,7 @@
     font-size: 18px;
     padding-right: 8px;
     box-sizing: border-box;
+    font-size: 5.5cqh;
 }
 .stat-tile .stat-units {
     position: absolute;
@@ -89,6 +92,7 @@
     bottom: 6px;
     font-size: 11px;
     opacity: 0.85;
+    font-size: 2cqh;
 }
 
 /* Wind gauge in the first cell */
