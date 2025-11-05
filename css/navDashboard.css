@@ -157,6 +157,7 @@
     border: 1px solid rgba(0,0,0,0.08);
     background: rgba(255,255,255,0.98);
     box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    box-sizing: border-box;
     cursor: pointer;
     font-size: 14px;
     z-index: 9999; /* ensure the toggle sits above the grid cells */
@@ -188,29 +189,52 @@
 #nav-dashboard + .nav-toggle svg { transform: rotate(0deg); }
 #nav-dashboard.collapsed + .nav-toggle svg { transform: rotate(180deg); }
 
-/* If the viewport is too narrow for the fixed vw/vh sizing, scale the dashboard down slightly */
-@media (max-width: 420px), (max-height: 320px) {
-    /* reduce toggle hit width to about half on very small viewports */
+/* If the viewport is too narrow for the fixed vw/vh sizing, compute an exact
+   square cell size so 4 tiles fill the available width (minus the toggle hit).
+   This avoids fractional sizing and overlapping on very small screens. */
+@media (max-width: 430px), (max-height: 320px) {
+    /* reduce toggle hit width on very small viewports */
     :root { --nav-toggle-hit: 22px; }
     #dashboard-container { right: calc(var(--nav-toggle-hit)); bottom: 0px; }
-    .nav-dashboard {
-        height: -moz-fit-content;
-        height: fit-content;
-        width: calc(100vw - (var(--nav-toggle-hit)));
-        padding: 4px;
-        gap: 4px;
+
+    /* compute responsive variables on the dashboard container so siblings (toggle)
+       can access the same values (CSS custom properties are scoped/inherited). */
+    #dashboard-container {
+        --resp-padding: 4px;
+        --resp-gap: 4px;
+        --available-w: calc(100vw - var(--nav-toggle-hit));
+        /* compute a cell size so that: 4*cell + 3*gap + 2*padding == available-w */
+        --cell-size-sm: calc((var(--available-w) - (3 * var(--resp-gap)) - (2 * var(--resp-padding))) / 4);
     }
+
+    /* responsive spacing values used in the cell-size calculation */
+    .nav-dashboard {
+        padding: var(--resp-padding);
+        gap: var(--resp-gap);
+        /* enforce the grid to use that exact square size per cell; include padding
+           in the outer height so the dashboard fits within the viewport bottom. */
+        width: var(--available-w);
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: repeat(4, var(--cell-size-sm));
+        grid-auto-rows: var(--cell-size-sm);
+        /* outer height = cell height + top & bottom padding */
+        height: calc(var(--cell-size-sm) + (2 * var(--resp-padding)));
+    }
+
     .nav-square { border-radius: 4px; }
+
+    /* make the toggle height match the dashboard outer height (cell + top/bottom padding) */
     .nav-toggle {
-        /* reduce the hit-size/min-width in responsive mode and keep the visual height consistent */
         min-width: 22px;
         padding-left: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
         padding-right: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
-        height: calc(var(--dash-h) - 12px);
+        height: calc(var(--cell-size-sm) + (2 * var(--resp-padding)));
     }
 }
 
 /* On very small screens, keep the dashboard off to the side to avoid covering main content */
 @media (max-width: 360px) {
     .nav-dashboard { display: none; }
+    .nav-toggle { display: none; }
 }
