@@ -68,30 +68,25 @@
 }
 .stat-tile .stat-title {
     position: absolute;
-    top: 6px;
-    left: 8px;
-    font-size: 12px;
-    opacity: 0.9;
+    top: 1px;
+    left: 4px;
     font-size: 2cqh;
 }
 .stat-tile .stat-value {
-    /* occupies 40% of the available height and is right-justified */
     height: 40%;
     display: flex;
     align-items: center;
     justify-content: flex-end;
     font-weight: 700;
-    font-size: 18px;
     padding-right: 8px;
     box-sizing: border-box;
-    font-size: 5.5cqh;
+    font-size: 5cqh;
 }
 .stat-tile .stat-units {
     position: absolute;
-    right: 8px;
-    bottom: 6px;
+    right: 4px;
+    bottom: 1px;
     font-size: 11px;
-    opacity: 0.85;
     font-size: 2cqh;
 }
 
@@ -226,6 +221,14 @@
         grid-auto-rows: var(--cell-size-sm);
         /* outer height = cell height + top & bottom padding */
         height: calc(var(--cell-size-sm) + (2 * var(--resp-padding)));
+    }
+
+    .stat-tile .stat-value {
+        font-size: 4cqh;
+    }
+
+    .nav-square .wind-speed {
+        font-size: 4cqh;
     }
 
     .nav-square { border-radius: 4px; }
