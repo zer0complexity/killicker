@@ -33,6 +33,17 @@ export default class TrackView {
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
         this.dashboard = dashboard;
+        // If a NavDashboard instance was provided, ensure it's visible so TrackView
+        // can update tiles immediately. The dashboard instance is expected to have
+        // been initialized by the caller (main.js).
+        try {
+            if (this.dashboard && typeof this.dashboard.show === 'function') {
+                this.dashboard.show(true);
+            }
+        } catch (err) {
+            // ignore any errors to avoid breaking TrackView creation
+            console.error('Error showing NavDashboard from TrackView:', err);
+        }
         this.prevPointData = null;
         this.centerMap = centerMap;
 
@@ -207,6 +218,7 @@ export default class TrackView {
             this.trackPoints = [];
             this.prevPointData = null;
             this.map = null;
+            this.dashboard = null;
         } catch (err) {
             console.error('Error destroying TrackView:', err);
         }
