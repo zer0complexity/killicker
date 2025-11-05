@@ -154,12 +154,15 @@ export default class TrackView {
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {
                 this.markers.push(this.placeMarker(element, arrowSvg));
-            }
-            if (this.dashboard) {
-                this.dashboard.setWind(element.AWA, element.AWS);
-                this.dashboard.setSOG(element.SOG);
-                this.dashboard.setDepth(element.Depth);
-                this.dashboard.setDistance(element.Distance);
+                if (this.dashboard) {
+                    this.dashboard.setWind(
+                        UnitManager.convertValue('AWA', element.AWA),
+                        UnitManager.convertValue('AWS', element.AWS)
+                    );
+                    this.dashboard.setSOG(UnitManager.convertValue('SOG', element.SOG));
+                    this.dashboard.setDepth(UnitManager.convertValue('Depth', element.Depth));
+                    this.dashboard.setDistance(UnitManager.convertValue('Distance', element.Distance));
+                }
             }
         });
     }

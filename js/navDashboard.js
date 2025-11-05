@@ -26,6 +26,7 @@ export default class NavDashboard {
         // wind gauge elements
         this.needle = document.querySelector('.nav-square.tile-1 .wind-needle');
         this.speedEl = document.querySelector('.nav-square.tile-1 .wind-speed');
+        this.windSpeedUnits = document.querySelector('.nav-square.tile-1 .wind-speed-units');
 
         // events
         this.btn.addEventListener('click', this._onToggleClick);
@@ -122,32 +123,35 @@ export default class NavDashboard {
     }
 
     // Wind gauge API
-    setWind(angle = 0, speed = 0) {
-        const a = Number(angle) || 0;
-        const s = Number(speed) || 0;
+    setWind(convertedAngle, convertedSpeed) {
+        console.log('Setting wind gauge:', convertedAngle, convertedSpeed);
         if (this.needle) {
-            this.needle.style.transform = `translateX(-50%) rotate(${a}deg)`;
+            this.needle.style.transform = `translateX(-50%) rotate(${convertedAngle.value}deg)`;
         }
         if (this.speedEl) {
-            this.speedEl.textContent = Math.round(s).toString();
+            this.speedEl.textContent = convertedSpeed.value;
+        }
+        if (this.windSpeedUnits) {
+            this.windSpeedUnits.textContent = convertedSpeed.unit;
         }
     }
 
-    // Convenience helpers the TrackView expects
-    // Map SOG, Depth, Distance to the stat tiles (2..4)
-    setSOG(value) {
+    setSOG(convertedValue) {
         // tile 2: SOG
-        this.setTileValue(2, value !== undefined ? String(value) : '—');
+        this.setTileValue(2, convertedValue.value);
+        this.setTileUnits(2, convertedValue.unit);
     }
 
-    setDepth(value) {
+    setDepth(convertedValue) {
         // tile 3: Depth
-        this.setTileValue(3, value !== undefined ? String(value) : '—');
+        this.setTileValue(3, convertedValue.value);
+        this.setTileUnits(3, convertedValue.unit);
     }
 
-    setDistance(value) {
+    setDistance(convertedValue) {
         // tile 4: Distance
-        this.setTileValue(4, value !== undefined ? String(value) : '—');
+        this.setTileValue(4, convertedValue.value);
+        this.setTileUnits(4, convertedValue.unit);
     }
 
     // Stat tile helpers
