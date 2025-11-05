@@ -7,7 +7,6 @@ export default class NavDashboard {
     constructor(opts = {}) {
         this.dashboardSelector = opts.dashboardSelector || '.nav-dashboard';
         this.toggleSelector = opts.toggleSelector || '.nav-toggle';
-        this.storageKey = opts.storageKey || 'navDashboardCollapsed';
 
         this.btn = null;
         this.dashboard = null;
@@ -27,19 +26,6 @@ export default class NavDashboard {
         // wind gauge elements
         this.needle = document.querySelector('.nav-square.tile-1 .wind-needle');
         this.speedEl = document.querySelector('.nav-square.tile-1 .wind-speed');
-
-        // restore collapsed state
-        const stored = localStorage.getItem(this.storageKey);
-        if (stored === 'true') {
-            this.dashboard.classList.add('collapsed');
-            this.dashboard.style.display = 'none';
-            this.btn.setAttribute('aria-expanded', 'false');
-            // if previously collapsed we also hide the toggle button by default
-            this.btn.style.display = 'none';
-        } else {
-            this.btn.setAttribute('aria-expanded', 'true');
-            this.btn.style.display = '';
-        }
 
         // events
         this.btn.addEventListener('click', this._onToggleClick);
@@ -105,7 +91,6 @@ export default class NavDashboard {
                 }
             };
             this.dashboard.addEventListener('transitionend', onEnd);
-            localStorage.setItem(this.storageKey, 'true');
             this.btn.setAttribute('aria-expanded', 'false');
         } else {
             // show dashboard and remove collapsed state so transform animates back
@@ -117,7 +102,6 @@ export default class NavDashboard {
             // force reflow
             this.dashboard.getBoundingClientRect();
             this.dashboard.classList.remove('collapsed');
-            localStorage.setItem(this.storageKey, 'false');
             this.btn.setAttribute('aria-expanded', 'true');
         }
     }
