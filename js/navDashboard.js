@@ -99,4 +99,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // expose API
     window.NavDashboard = window.NavDashboard || {};
     window.NavDashboard.setWind = setWind;
+
+    // Stat tile APIs: set title, value, units for tiles 2..4
+    function getTileEl(index) {
+        return document.querySelector(`.nav-square.tile-${index}`) || document.querySelector(`.nav-square[data-tile="${index}"]`);
+    }
+
+    function setTileTitle(index, title) {
+        const el = getTileEl(index);
+        if (!el) return;
+        const t = el.querySelector('.stat-title');
+        if (t) t.textContent = String(title);
+    }
+
+    function setTileValue(index, value) {
+        const el = getTileEl(index);
+        if (!el) return;
+        const v = el.querySelector('.stat-value');
+        if (v) v.textContent = String(value);
+    }
+
+    function setTileUnits(index, units) {
+        const el = getTileEl(index);
+        if (!el) return;
+        const u = el.querySelector('.stat-units');
+        if (u) u.textContent = String(units);
+    }
+
+    function setTile(index, { title, value, units } = {}) {
+        if (title !== undefined) setTileTitle(index, title);
+        if (value !== undefined) setTileValue(index, value);
+        if (units !== undefined) setTileUnits(index, units);
+    }
+
+    window.NavDashboard.setTileTitle = setTileTitle;
+    window.NavDashboard.setTileValue = setTileValue;
+    window.NavDashboard.setTileUnits = setTileUnits;
+    window.NavDashboard.setTile = setTile;
 });

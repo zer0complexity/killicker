@@ -57,6 +57,40 @@
     container-type: inline-size;
 }
 
+/* Stat tile layout for tiles 2-4 */
+.stat-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    box-sizing: border-box;
+}
+.stat-tile .stat-title {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 12px;
+    opacity: 0.9;
+}
+.stat-tile .stat-value {
+    /* occupies 40% of the available height and is right-justified */
+    height: 40%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-weight: 700;
+    font-size: 18px;
+    padding-right: 8px;
+    box-sizing: border-box;
+}
+.stat-tile .stat-units {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    font-size: 11px;
+    opacity: 0.85;
+}
+
 /* Wind gauge in the first cell */
 .tile-1 .wind-gauge,
 .nav-square.tile-1 .wind-gauge {
