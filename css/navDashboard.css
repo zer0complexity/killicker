@@ -272,6 +272,27 @@
 
 @media (orientation: landscape) and (max-height: 430px) {
     :root { --nd-gap: 2px; }
+
+    .stat-tile .stat-title {
+        font-size: 3.5cqh;
+    }
+
+    .stat-tile .stat-value {
+        font-size: 7cqh;
+    }
+
+    .stat-tile .stat-units {
+        font-size: 4cqh;
+    }
+
+    .nav-square .wind-speed {
+        font-size: 7cqh;
+    }
+
+    .nav-square .wind-speed-units {
+        top: 70%;
+        font-size: 2.5cqh;
+    }
 }
 
 /* Landscape layout: single column with 4 rows (wind tile on top). The dashboard's
