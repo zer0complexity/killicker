@@ -8,7 +8,7 @@
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
-:root { --nd-gap: 6px; --nav-toggle-w: 17px; --nav-toggle-hit: 24px; --dash-h: 16vh; }
+:root { --nd-gap: 4px; --nav-toggle-w: 17px; --nav-toggle-hit: 24px; --dash-h: 16vh; }
 
 .nav-dashboard {
     /* make the dashboard a single-row, four-column grid of perfect squares
@@ -31,6 +31,7 @@
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
     color: #111;
     overflow: hidden; /* ensure no scrollbars inside */
+    max-height: 800px; /* never taller than 800px */
     position: relative;
     /* animate only horizontal transform so layout/height aren't affected */
     transition: transform 220ms cubic-bezier(.2,.8,.2,1);
@@ -209,7 +210,7 @@
 /* If the viewport is too narrow for the fixed vw/vh sizing, compute an exact
    square cell size so 4 tiles fill the available width (minus the toggle hit).
    This avoids fractional sizing and overlapping on very small screens. */
-@media (max-width: 430px), (max-height: 320px) {
+@media (max-width: 430px) {
     /* reduce toggle hit width on very small viewports */
     :root { --nav-toggle-hit: 22px; }
     #dashboard-container { right: calc(var(--nav-toggle-hit)); bottom: 0px; }
@@ -217,8 +218,8 @@
     /* compute responsive variables on the dashboard container so siblings (toggle)
        can access the same values (CSS custom properties are scoped/inherited). */
     #dashboard-container {
-        --resp-padding: 4px;
-        --resp-gap: 4px;
+        --resp-padding: 2px;
+        --resp-gap: 2px;
         --available-w: calc(100vw - var(--nav-toggle-hit));
         /* compute a cell size so that: 4*cell + 3*gap + 2*padding == available-w */
         --cell-size-sm: calc((var(--available-w) - (3 * var(--resp-gap)) - (2 * var(--resp-padding))) / 4);
@@ -269,6 +270,10 @@
     .nav-toggle { display: none; }
 }
 
+@media (orientation: landscape) and (max-height: 430px) {
+    :root { --nd-gap: 2px; }
+}
+
 /* Landscape layout: single column with 4 rows (wind tile on top). The dashboard's
    controlling size is its width (16vw). The dashboard + toggle span the full viewport height.
    The dashboard is flush to the right edge and the toggle sits underneath it at the bottom-right. */
@@ -280,7 +285,6 @@
     #dashboard-container {
         right: 0; /* flush to right edge */
         bottom: 0;
-        height: 100vh;
         --ls-width: 16vw; /* desired dashboard width */
         --ls-padding: var(--nd-gap);
         --ls-gap: var(--nd-gap);
@@ -290,15 +294,17 @@
         --ls-inner-from-width: calc(var(--ls-width) - (2 * var(--ls-padding)));
         /* height-limited inner tile size so that 4 tiles + gaps + paddings + toggle fit 100vh */
         --ls-inner-from-height: calc((100vh - var(--ls-toggle-h) - (2 * var(--ls-padding)) - (3 * var(--ls-gap))) / 4);
-        /* final inner tile size is the smaller of the two (keeps tiles square and ensures fit) */
-        --ls-inner-w: min(var(--ls-inner-from-width), var(--ls-inner-from-height));
+        /* cap tile size so dashboard height never exceeds 800px */
+        --ls-inner-from-maxheight: calc((800px - (2 * var(--ls-padding)) - (3 * var(--ls-gap))) / 4);
+        /* final inner tile size is the smallest of the width, height, and maxheight constraints */
+        --ls-inner-w: min(var(--ls-inner-from-width), var(--ls-inner-from-height), var(--ls-inner-from-maxheight));
         --ls-dash-h: calc((var(--ls-inner-w) * 4) + (3 * var(--ls-gap)) + (2 * var(--ls-padding)));
         --ls-dash-w: calc(var(--ls-inner-w) + (2 * var(--ls-padding)));
-        --ls-toggle-h-actual: min(calc(100vh - var(--ls-dash-h)), var(--ls-toggle-h));
+        --ls-toggle-h-actual: max(var(--ls-toggle-h), calc(0px));
         display: flex;
         flex-direction: column;
         align-items: flex-end; /* align children to right edge */
-        justify-content: flex-start; /* dashboard at top; we'll place toggle at bottom using margin-top:auto */
+        justify-content: flex-start; /* stack dashboard then toggle with no extra gap */
         box-sizing: border-box;
         width: var(--ls-dash-w);
     }
@@ -329,12 +335,12 @@
         position: relative; /* flow inside the container */
         align-self: flex-end;
         width: 100%; /* match dashboard width */
-        /* height is the remaining space after the dashboard; ensures dashboard + toggle == 100vh */
-        height: var(--ls-toggle-h-actual);
+        /* use the interactive hit width as the toggle's thickness (unrotated) */
+        height: var(--ls-toggle-h);
         box-sizing: border-box;
         transform: rotate(0deg);
         transform-origin: center center;
-        margin-top: auto; /* push toggle to the bottom */
+        margin: 0; /* ensure toggle sits directly under dashboard with no gap */
     }
 
     /* Adjust chevron rotation so it looks correct when the button is rotated */
