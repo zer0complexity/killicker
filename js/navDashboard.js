@@ -78,4 +78,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
     });
+
+    // Wind gauge elements and API
+    const needle = document.querySelector('.nav-square.tile-1 .wind-needle');
+    const speedEl = document.querySelector('.nav-square.tile-1 .wind-speed');
+
+    function setWind(angle = 0, speed = 0) {
+        // angle: negative -> port (left), positive -> starboard (right)
+        const a = Number(angle) || 0;
+        const s = Number(speed) || 0;
+        if (needle) {
+            // rotate needle: positive = clockwise (starboard), negative = counter-clockwise (port)
+            needle.style.transform = `translateX(-50%) rotate(${a}deg)`;
+        }
+        if (speedEl) {
+            speedEl.textContent = Math.round(s).toString();
+        }
+    }
+
+    // expose API
+    window.NavDashboard = window.NavDashboard || {};
+    window.NavDashboard.setWind = setWind;
 });

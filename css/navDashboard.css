@@ -47,13 +47,54 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #ffffff, #efefef);
+    background: linear-gradient(180deg, #404040, #a0a0a0);
     border-radius: 6px;
     border: 1px solid rgba(0,0,0,0.06);
     box-shadow: 0 6px 12px rgba(0,0,0,0.08);
     font-size: 0.95rem;
     box-sizing: border-box;
     overflow: hidden;
+    container-type: inline-size;
+}
+
+/* Wind gauge in the first cell */
+.tile-1 .wind-gauge,
+.nav-square.tile-1 .wind-gauge {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: url("../images/wind-512x512.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    box-sizing: border-box;
+}
+
+.nav-square .wind-needle {
+    position: absolute;
+    width: 2%;
+    height: 35%;
+    background: #ff9000;
+    top: 50%;
+    left: 50%;
+    transform-origin: 50% 0%; /* pivot near the bottom center */
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    transition: transform 320ms cubic-bezier(.2,.8,.2,1);
+}
+
+.nav-square .wind-speed {
+    position: absolute;
+    font-weight: 700;
+    color: #f0f0f0;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 5cqh;
+    text-align: center;
+    pointer-events: none;
 }
 
 /* animate inner cells (smoother collapse) - only fade, do NOT scale/transform them
