@@ -25,10 +25,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // force reflow
             dashboard.getBoundingClientRect();
 
-            // compute horizontal scale so the visual width becomes collapsedWidth px
+            // compute scale depending on orientation: vertical collapse in landscape,
+            // horizontal collapse in portrait.
             const rect = dashboard.getBoundingClientRect();
-            const collapsedWidth = 0; // px target visual width
-            const scale = Math.max(0.02, collapsedWidth / rect.width);
+            const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+            let scale;
+            if (isLandscape) {
+                // collapse vertically: target visual height = 0 (scaleY)
+                const collapsedHeight = 0;
+                scale = Math.max(0.02, collapsedHeight / rect.height);
+                // ensure CSS will use scaleY in landscape (we already set .nav-dashboard.collapsed to use scaleY in CSS)
+            } else {
+                // collapse horizontally: target visual width = 0 (scaleX)
+                const collapsedWidth = 0;
+                scale = Math.max(0.02, collapsedWidth / rect.width);
+            }
             dashboard.style.setProperty('--dash-scale', scale);
 
             // trigger transform-based collapse
