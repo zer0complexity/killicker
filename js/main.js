@@ -133,7 +133,6 @@ initMap().then(async (m) => {
             // Register a listener for live track updates to hide the dashboard when deactivated
             trackManager.registerLiveTrackListener((liveTrackId) => {
                 if (liveTrackId === null) {
-                    console.log('Hiding NavDashboard from main.js as live track was deactivated: trackId=', liveTrackId);
                     dashboard.hide();
                 }
             });
