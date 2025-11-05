@@ -1,150 +1,209 @@
-// NavDashboard toggle behavior
-// Adds expand/collapse behavior to the `.nav-dashboard` element.
+// NavDashboard class (ES module)
+// Provides an API to control the navigation dashboard and tiles.
+// This file exports the `NavDashboard` class. Instantiate in `main.js` and call `init()`
+// to attach to DOM elements.
 
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.querySelector('.nav-toggle');
-    const dashboard = document.querySelector('.nav-dashboard');
-    if (!btn || !dashboard) return;
+export default class NavDashboard {
+    constructor(opts = {}) {
+        this.dashboardSelector = opts.dashboardSelector || '.nav-dashboard';
+        this.toggleSelector = opts.toggleSelector || '.nav-toggle';
+        this.storageKey = opts.storageKey || 'navDashboardCollapsed';
 
-    // initialize from stored preference if available
-    const key = 'navDashboardCollapsed';
-    const stored = localStorage.getItem(key);
-    if (stored === 'true') {
-        // start collapsed and fully hidden
-        dashboard.classList.add('collapsed');
-        dashboard.style.display = 'none';
-        btn.setAttribute('aria-expanded', 'false');
-    } else {
-        btn.setAttribute('aria-expanded', 'true');
+        this.btn = null;
+        this.dashboard = null;
+        this.needle = null;
+        this.speedEl = null;
+
+        this._onToggleClick = this._onToggleClick.bind(this);
+        this._onToggleKeydown = this._onToggleKeydown.bind(this);
     }
 
-    function setCollapsed(collapsed) {
+    // Attach to DOM elements and wire events. Call after creating the instance.
+    init() {
+        this.btn = document.querySelector(this.toggleSelector);
+        this.dashboard = document.querySelector(this.dashboardSelector);
+        if (!this.btn || !this.dashboard) return;
+
+        // wind gauge elements
+        this.needle = document.querySelector('.nav-square.tile-1 .wind-needle');
+        this.speedEl = document.querySelector('.nav-square.tile-1 .wind-speed');
+
+        // restore collapsed state
+        const stored = localStorage.getItem(this.storageKey);
+        if (stored === 'true') {
+            this.dashboard.classList.add('collapsed');
+            this.dashboard.style.display = 'none';
+            this.btn.setAttribute('aria-expanded', 'false');
+            // if previously collapsed we also hide the toggle button by default
+            this.btn.style.display = 'none';
+        } else {
+            this.btn.setAttribute('aria-expanded', 'true');
+            this.btn.style.display = '';
+        }
+
+        // events
+        this.btn.addEventListener('click', this._onToggleClick);
+        this.btn.addEventListener('keydown', this._onToggleKeydown);
+
+        // preserve previous behavior: don't auto-open on outside clicks
+        document.addEventListener('click', (e) => {
+            if (!this.dashboard.contains(e.target) && this.dashboard.classList.contains('collapsed')) {
+                return;
+            }
+        });
+    }
+
+    // Internal click handler: when the user clicks the toggle button we must NOT hide the button itself
+    _onToggleClick(e) {
+        e.stopPropagation();
+        const collapsed = this.dashboard.classList.contains('collapsed');
+        // when triggered by the button, never hide the toggle button itself
+        this.setCollapsed(!collapsed, { hideToggle: false });
+    }
+
+    _onToggleKeydown(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.btn.click();
+        }
+    }
+
+    // collapsed: boolean, options: { hideToggle: boolean }
+    setCollapsed(collapsed, options = {}) {
+        const hideToggle = options.hideToggle !== undefined ? options.hideToggle : true;
+        if (!this.dashboard || !this.btn) return;
+
         if (collapsed) {
             // make element visible so transform can animate
-            dashboard.style.display = '';
+            this.dashboard.style.display = '';
             // force reflow
-            dashboard.getBoundingClientRect();
+            this.dashboard.getBoundingClientRect();
 
-            // compute scale depending on orientation: vertical collapse in landscape,
-            // horizontal collapse in portrait.
-            const rect = dashboard.getBoundingClientRect();
+            // compute scale depending on orientation
+            const rect = this.dashboard.getBoundingClientRect();
             const isLandscape = window.matchMedia('(orientation: landscape)').matches;
             let scale;
             if (isLandscape) {
-                // collapse vertically: target visual height = 0 (scaleY)
                 const collapsedHeight = 0;
                 scale = Math.max(0.02, collapsedHeight / rect.height);
-                // ensure CSS will use scaleY in landscape (we already set .nav-dashboard.collapsed to use scaleY in CSS)
             } else {
-                // collapse horizontally: target visual width = 0 (scaleX)
                 const collapsedWidth = 0;
                 scale = Math.max(0.02, collapsedWidth / rect.width);
             }
-            dashboard.style.setProperty('--dash-scale', scale);
+            this.dashboard.style.setProperty('--dash-scale', scale);
 
             // trigger transform-based collapse
-            dashboard.classList.add('collapsed');
+            this.dashboard.classList.add('collapsed');
 
             const onEnd = (ev) => {
                 if (ev.propertyName === 'transform') {
                     // hide after the transform completes so no visual remnants remain
-                    dashboard.style.display = 'none';
-                    dashboard.removeEventListener('transitionend', onEnd);
+                    this.dashboard.style.display = 'none';
+                    // hide the toggle button only when caller requested it
+                    if (hideToggle) this.btn.style.display = 'none';
+                    this.dashboard.removeEventListener('transitionend', onEnd);
                 }
             };
-            dashboard.addEventListener('transitionend', onEnd);
-            localStorage.setItem(key, 'true');
-            btn.setAttribute('aria-expanded', 'false');
+            this.dashboard.addEventListener('transitionend', onEnd);
+            localStorage.setItem(this.storageKey, 'true');
+            this.btn.setAttribute('aria-expanded', 'false');
         } else {
-            // show dashboard and remove collapsed state so transform animates back to full width
-            dashboard.style.display = '';
+            // show dashboard and remove collapsed state so transform animates back
+            this.dashboard.style.display = '';
+            // ensure toggle is visible when dashboard is shown (if requested)
+            if (hideToggle) this.btn.style.display = '';
             // ensure any custom scale var is removed so transform becomes identity
-            dashboard.style.removeProperty('--dash-scale');
+            this.dashboard.style.removeProperty('--dash-scale');
             // force reflow
-            dashboard.getBoundingClientRect();
-            dashboard.classList.remove('collapsed');
-            localStorage.setItem(key, 'false');
-            btn.setAttribute('aria-expanded', 'true');
+            this.dashboard.getBoundingClientRect();
+            this.dashboard.classList.remove('collapsed');
+            localStorage.setItem(this.storageKey, 'false');
+            this.btn.setAttribute('aria-expanded', 'true');
         }
     }
 
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const collapsed = dashboard.classList.contains('collapsed');
-        setCollapsed(!collapsed);
-    });
+    // Public convenience methods. includeToggle controls whether the toggle button is shown/hidden too.
+    show(includeToggle = true) {
+        this.setCollapsed(false, { hideToggle: includeToggle });
+    }
 
-    // Allow keyboard interaction on the dashboard container: Space or Enter toggles when focused on button
-    btn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            btn.click();
-        }
-    });
+    hide(includeToggle = true) {
+        this.setCollapsed(true, { hideToggle: includeToggle });
+    }
 
-    // If the user clicks the collapsed icon outside the dashboard, toggle open
-    document.addEventListener('click', (e) => {
-        if (!dashboard.contains(e.target) && dashboard.classList.contains('collapsed')) {
-            // don't auto-open on outside clicks; leave it collapsed
-            return;
-        }
-    });
+    toggle(includeToggle = true) {
+        if (!this.dashboard) return;
+        const collapsed = this.dashboard.classList.contains('collapsed');
+        this.setCollapsed(!collapsed, { hideToggle: includeToggle });
+    }
 
-    // Wind gauge elements and API
-    const needle = document.querySelector('.nav-square.tile-1 .wind-needle');
-    const speedEl = document.querySelector('.nav-square.tile-1 .wind-speed');
-
-    function setWind(angle = 0, speed = 0) {
-        // angle: negative -> port (left), positive -> starboard (right)
+    // Wind gauge API
+    setWind(angle = 0, speed = 0) {
         const a = Number(angle) || 0;
         const s = Number(speed) || 0;
-        if (needle) {
-            // rotate needle: positive = clockwise (starboard), negative = counter-clockwise (port)
-            needle.style.transform = `translateX(-50%) rotate(${a}deg)`;
+        if (this.needle) {
+            this.needle.style.transform = `translateX(-50%) rotate(${a}deg)`;
         }
-        if (speedEl) {
-            speedEl.textContent = Math.round(s).toString();
+        if (this.speedEl) {
+            this.speedEl.textContent = Math.round(s).toString();
         }
     }
 
-    // expose API
-    window.NavDashboard = window.NavDashboard || {};
-    window.NavDashboard.setWind = setWind;
+    // Convenience helpers the TrackView expects
+    // Map SOG, Depth, Distance to the stat tiles (2..4)
+    setSOG(value) {
+        // tile 2: SOG
+        this.setTileValue(2, value !== undefined ? String(value) : '—');
+    }
 
-    // Stat tile APIs: set title, value, units for tiles 2..4
-    function getTileEl(index) {
+    setDepth(value) {
+        // tile 3: Depth
+        this.setTileValue(3, value !== undefined ? String(value) : '—');
+    }
+
+    setDistance(value) {
+        // tile 4: Distance
+        this.setTileValue(4, value !== undefined ? String(value) : '—');
+    }
+
+    // Stat tile helpers
+    getTileEl(index) {
         return document.querySelector(`.nav-square.tile-${index}`) || document.querySelector(`.nav-square[data-tile="${index}"]`);
     }
 
-    function setTileTitle(index, title) {
-        const el = getTileEl(index);
+    setTileTitle(index, title) {
+        const el = this.getTileEl(index);
         if (!el) return;
         const t = el.querySelector('.stat-title');
         if (t) t.textContent = String(title);
     }
 
-    function setTileValue(index, value) {
-        const el = getTileEl(index);
+    setTileValue(index, value) {
+        const el = this.getTileEl(index);
         if (!el) return;
         const v = el.querySelector('.stat-value');
         if (v) v.textContent = String(value);
     }
 
-    function setTileUnits(index, units) {
-        const el = getTileEl(index);
+    setTileUnits(index, units) {
+        const el = this.getTileEl(index);
         if (!el) return;
         const u = el.querySelector('.stat-units');
         if (u) u.textContent = String(units);
     }
 
-    function setTile(index, { title, value, units } = {}) {
-        if (title !== undefined) setTileTitle(index, title);
-        if (value !== undefined) setTileValue(index, value);
-        if (units !== undefined) setTileUnits(index, units);
+    setTile(index, { title, value, units } = {}) {
+        if (title !== undefined) this.setTileTitle(index, title);
+        if (value !== undefined) this.setTileValue(index, value);
+        if (units !== undefined) this.setTileUnits(index, units);
     }
 
-    window.NavDashboard.setTileTitle = setTileTitle;
-    window.NavDashboard.setTileValue = setTileValue;
-    window.NavDashboard.setTileUnits = setTileUnits;
-    window.NavDashboard.setTile = setTile;
-});
+    // Bulk set: pass an object like {2: {value: 'x'}, 3: {title: 'y'}}
+    setValues(map = {}) {
+        Object.keys(map).forEach((k) => {
+            const idx = Number(k);
+            if (!Number.isNaN(idx)) this.setTile(idx, map[k]);
+        });
+    }
+}
+
