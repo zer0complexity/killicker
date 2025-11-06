@@ -13,6 +13,9 @@ export default class NavDashboard {
         this.needle = null;
         this.speedEl = null;
 
+    // per-tile animation state: map index -> { rafId, startTime, from, to, duration, decimals }
+    this._tileAnim = {};
+
         this._onToggleClick = this._onToggleClick.bind(this);
         this._onToggleKeydown = this._onToggleKeydown.bind(this);
     }
@@ -135,21 +138,86 @@ export default class NavDashboard {
         }
     }
 
+    // Animate a numeric tile value from its current displayed number to the new value
+    // over `duration` milliseconds. If either current or new value cannot be parsed as
+    // numbers (eg. '--'), the value is set immediately with no animation.
+    animateTileValue(index, newValueStr, duration = 500) {
+        const el = this.getTileEl(index);
+        if (!el) return;
+        const v = el.querySelector('.stat-value');
+        if (!v) return;
+
+        // Attempt to parse numeric values. If parsing fails, fall back to immediate set.
+        const parse = (s) => {
+            if (s === null || s === undefined) return NaN;
+            // strip thousand separators and non-numeric characters except dot and minus
+            const cleaned = String(s).replace(/,/g, '').trim();
+            return parseFloat(cleaned);
+        };
+
+        const to = parse(newValueStr);
+        const from = parse(v.textContent);
+
+        if (!isFinite(to) || !isFinite(from)) {
+            // If either value is non-numeric, set immediately
+            v.textContent = String(newValueStr);
+            return;
+        }
+
+        if (to === from) {
+            v.textContent = String(newValueStr);
+            return;
+        }
+
+        // determine decimal places from newValueStr (fallback to 0)
+        let decimals = 0;
+        const m = String(newValueStr).match(/\.(\d+)$/);
+        if (m && m[1]) decimals = m[1].length;
+
+        // cancel any running animation for this tile
+        const existing = this._tileAnim[index];
+        if (existing && existing.rafId) cancelAnimationFrame(existing.rafId);
+
+        const startTimeRef = { start: null };
+
+        const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
+
+        const step = (ts) => {
+            if (!startTimeRef.start) startTimeRef.start = ts;
+            const elapsed = ts - startTimeRef.start;
+            let t = Math.min(1, elapsed / duration);
+            t = easeOutQuad(t);
+            const cur = from + (to - from) * t;
+            // format with same decimals as target
+            v.textContent = (decimals > 0) ? cur.toFixed(decimals) : String(Math.round(cur));
+
+            if (elapsed < duration) {
+                this._tileAnim[index].rafId = requestAnimationFrame(step);
+            } else {
+                // ensure final value exact
+                v.textContent = String(newValueStr);
+                if (this._tileAnim[index]) delete this._tileAnim[index];
+            }
+        };
+
+        this._tileAnim[index] = { rafId: requestAnimationFrame(step), startTimeRef };
+    }
+
     setSOG(convertedValue) {
-        // tile 2: SOG
-        this.setTileValue(2, convertedValue.value);
+        // tile 2: SOG — animate numeric change over 500ms
+        this.animateTileValue(2, convertedValue.value, 500);
         this.setTileUnits(2, convertedValue.unit);
     }
 
     setDepth(convertedValue) {
-        // tile 3: Depth
-        this.setTileValue(3, convertedValue.value);
+        // tile 3: Depth — animate numeric change over 500ms
+        this.animateTileValue(3, convertedValue.value, 500);
         this.setTileUnits(3, convertedValue.unit);
     }
 
     setDistance(convertedValue) {
-        // tile 4: Distance
-        this.setTileValue(4, convertedValue.value);
+        // tile 4: Distance — animate numeric change over 500ms
+        this.animateTileValue(4, convertedValue.value, 500);
         this.setTileUnits(4, convertedValue.unit);
     }
 
