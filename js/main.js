@@ -173,6 +173,7 @@ initMap().then(async (m) => {
                         await activateTrack(liveTrackId, liveTrackColour, true, navDashboard);
                     } else {
                         deactivateTrack(liveTrackId);
+                        navDashboard.hide();
                     }
                 } catch (err) {
                     console.error('Error handling live track follow change:', err);
