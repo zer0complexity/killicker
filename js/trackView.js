@@ -156,7 +156,7 @@ export default class TrackView {
                 this.markers.push(this.placeMarker(element, arrowSvg));
                 if (this.dashboard) {
                     this.dashboard.setWind(
-                        UnitManager.convertValue('AWA', element.AWA),
+                        UnitManager.convertWindAngle(element.AWA),
                         UnitManager.convertValue('AWS', element.AWS)
                     );
                     this.dashboard.setSOG(UnitManager.convertValue('SOG', element.SOG));

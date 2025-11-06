@@ -30,6 +30,11 @@ export class UnitManager {
 				return { value: value, unit: '' };
 		}
 	}
+
+    static convertWindAngle(angleRadians) {
+        let angleDegrees = angleRadians * (180 / Math.PI);
+        return { value: angleDegrees, unit: '°' };
+    }
 }
 
 export default UnitManager;
