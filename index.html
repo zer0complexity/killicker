@@ -6,7 +6,7 @@
     <title>Killicker</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/menu.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/navDashboard.css">
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
 </head>
 <body>
@@ -15,9 +15,44 @@
     </main>
 
     <!-- Dashboard overlay -->
-    <div id="dashboard-container" aria-label="Dashboard"></div>
+    <div id="dashboard-container" aria-label="Dashboard">
+        <!-- NavDashboard: small top-right anchored navigation dashboard -->
+        <nav id="nav-dashboard" class="nav-dashboard" role="navigation" style="display: none;">
+            <div class="nav-grid">
+                <div class="nav-square tile-1">
+                    <div class="wind-gauge" role="img" aria-label="Wind gauge">
+                        <div class="wind-needle" aria-hidden="true"></div>
+                        <div class="wind-speed" aria-live="polite">--</div>
+                        <div class="wind-speed-units" aria-live="polite">--</div>
+                    </div>
+                </div>
+                <div class="nav-square tile-2 stat-tile" data-tile="2">
+                    <div class="stat-title">SOG</div>
+                    <div class="stat-value">--</div>
+                    <div class="stat-units">--</div>
+                </div>
+                <div class="nav-square tile-3 stat-tile" data-tile="3">
+                    <div class="stat-title">Depth</div>
+                    <div class="stat-value">--</div>
+                    <div class="stat-units">--</div>
+                </div>
+                <div class="nav-square tile-4 stat-tile" data-tile="4">
+                    <div class="stat-title">Distance</div>
+                    <div class="stat-value">--</div>
+                    <div class="stat-units">--</div>
+                </div>
+            </div>
+        </nav>
+        <!-- Toggle moved out of the nav for easier positioning and layering -->
+        <button class="nav-toggle" title="Toggle dashboard" style="display: none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M8 4l8 8-8 8" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </button>
+    </div>
 
     <script src="js/loader.js"></script>
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/navDashboard.js"></script>
 </body>
 </html>

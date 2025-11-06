@@ -377,7 +377,7 @@ export default class MapMenu {
             }
             currentMeters += value;
             const newConverted = UnitManager.convertValue('Distance', currentMeters);
-            this.selectedDistanceValue.textContent = `${newConverted.value}${newConverted.unit}`;
+            this.selectedDistanceValue.textContent = `${newConverted.value} ${newConverted.unit}`;
         } else {
             this.selectedDistanceValue.textContent = `${value}`;
         }
@@ -407,7 +407,7 @@ export default class MapMenu {
             currentMeters -= value;
             if (currentMeters < 0) currentMeters = 0;
             const converted = UnitManager.convertValue('Distance', currentMeters);
-            this.selectedDistanceValue.textContent = `${converted.value}${converted.unit}`;
+            this.selectedDistanceValue.textContent = `${converted.value} ${converted.unit}`;
         }
     }
 

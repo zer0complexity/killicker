@@ -1,0 +1,369 @@
+#dashboard-container {
+    /* keep the dashboard fixed to the viewport's bottom-right and offset it
+       by the toggle hit width so the fixed toggle can sit flush against the screen. */
+    position: fixed;
+    bottom: 0px;
+    right: calc(var(--nav-toggle-hit, 24px));
+    z-index: 1000;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+:root { --nd-gap: 4px; --nav-toggle-w: 17px; --nav-toggle-hit: 24px; --dash-h: 16vh; }
+
+.nav-dashboard {
+    /* make the dashboard a single-row, four-column grid of perfect squares
+       We compute a cell size from the dashboard height so width can be explicit.
+       This lets width and height animate together smoothly when collapsing. */
+    --cell-size: calc(var(--dash-h) - (2 * var(--nd-gap)));
+    height: var(--dash-h); /* controlling size */
+    /* total width = 4 * cell + 3 * gap + 2 * padding (padding == gap) => 4*cell + 5*gap */
+    width: calc((var(--cell-size) * 4) + (var(--nd-gap) * 5));
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    grid-auto-rows: 1fr; /* one row that fills available height */
+    gap: var(--nd-gap);
+    padding: var(--nd-gap);
+    background: linear-gradient(45deg, #fbfbfb 0%, #a6a6a8 100%); /* off-white -> grey */
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+    border: 1px solid rgba(0,0,0,0.08);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    color: #111;
+    overflow: hidden; /* ensure no scrollbars inside */
+    max-height: 800px; /* never taller than 800px */
+    position: relative;
+    /* animate only horizontal transform so layout/height aren't affected */
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+    transform-origin: right center;
+}
+
+.nav-grid { display: contents; }
+
+.nav-square {
+    /* each square will size to the grid row height and become perfectly square because
+       we set aspect-ratio: 1/1. Using height:100% makes the height match the grid row. */
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(-45deg, #404040, #a0a0a0);
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    container-type: inline-size;
+}
+
+/* Stat tile layout for tiles 2-4 */
+.stat-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    box-sizing: border-box;
+    color: #ffffff;
+}
+.stat-tile .stat-title {
+    position: absolute;
+    top: 1px;
+    left: 4px;
+    font-size: 2cqh;
+}
+.stat-tile .stat-value {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-weight: 700;
+    padding-right: 8px;
+    box-sizing: border-box;
+    font-size: 5cqh;
+}
+.stat-tile .stat-units {
+    position: absolute;
+    right: 4px;
+    bottom: 1px;
+    font-size: 11px;
+    font-size: 2cqh;
+}
+
+/* Wind gauge in the first cell */
+.tile-1 .wind-gauge,
+.nav-square.tile-1 .wind-gauge {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: url("../images/wind-512x512.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    box-sizing: border-box;
+}
+
+.nav-square .wind-needle {
+    position: absolute;
+    width: 2%;
+    height: 35%;
+    background: #ff9000;
+    top: 50%;
+    left: 50%;
+    transform-origin: 50% 0%; /* pivot near the bottom center */
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    transition: transform 320ms cubic-bezier(.2,.8,.2,1);
+    z-index: 2;
+}
+
+.nav-square .wind-speed {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700;
+    color: #f0f0f0;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 5cqh;
+    text-align: center;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.nav-square .wind-speed-units {
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5cqh;
+    color: #f0f0f0;
+    font-weight: 400;
+    margin-left: 2px;
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* animate inner cells (smoother collapse) - only fade, do NOT scale/transform them
+   removing transform prevents any perceived vertical shrinking during collapse */
+.nav-grid > * {
+    transition: opacity 220ms ease;
+    will-change: opacity;
+    position: relative;
+    z-index: 1; /* keep inner cells beneath the toggle */
+}
+
+
+/* Toggle button */
+.nav-toggle {
+    /* place the toggle flush to the right edge of the viewport; actual touch width
+       is larger than the visual chevron width to be touch-friendly */
+    position: fixed;
+    right: 0;
+    bottom: 0px;
+    width: var(--nav-toggle-hit); /* interactive hit width (touch-friendly) */
+    height: var(--dash-h); /* visual height equals dashboard height */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 0 0 6px; /* rounded on the left edge only */
+    border: 1px solid rgba(0,0,0,0.28);
+    background: rgba(255,255,255,0.98);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.82);
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 9999; /* ensure the toggle sits above the grid cells */
+    /* don't animate height - keep height constant and change instantly; only rotate/transform the chevron */
+    transition: transform 220ms ease;
+    overflow: hidden;
+    min-width: 44px; /* ensure a minimum touch target */
+    padding-left: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+    padding-right: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+}
+
+.nav-dashboard.collapsed {
+    /* visual collapse handled by a horizontal scale transform; keep layout height unchanged
+       until the element is hidden by JS after the transform finishes */
+    transform: scaleX(var(--dash-scale, 0.12));
+    pointer-events: none; /* content is hidden/faded while collapsed */
+}
+
+/* Don't hide children immediately; fade & scale them so width shrinks smoothly together with height */
+.nav-dashboard.collapsed .nav-grid > * {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* no direct collapsed styles for the toggle here because it is outside the nav element */
+
+/* chevron rotation: use sibling selector because the toggle lives outside the nav */
+.nav-toggle svg { transition: transform 220ms ease; transform-origin: 50% 50%; }
+#nav-dashboard + .nav-toggle svg { transform: rotate(0deg); }
+#nav-dashboard.collapsed + .nav-toggle svg { transform: rotate(180deg); }
+
+/* If the viewport is too narrow for the fixed vw/vh sizing, compute an exact
+   square cell size so 4 tiles fill the available width (minus the toggle hit).
+   This avoids fractional sizing and overlapping on very small screens. */
+@media (max-width: 430px) {
+    /* reduce toggle hit width on very small viewports */
+    :root { --nav-toggle-hit: 22px; }
+    #dashboard-container { right: calc(var(--nav-toggle-hit)); bottom: 0px; }
+
+    /* compute responsive variables on the dashboard container so siblings (toggle)
+       can access the same values (CSS custom properties are scoped/inherited). */
+    #dashboard-container {
+        --resp-padding: 2px;
+        --resp-gap: 2px;
+        --available-w: calc(100vw - var(--nav-toggle-hit));
+        /* compute a cell size so that: 4*cell + 3*gap + 2*padding == available-w */
+        --cell-size-sm: calc((var(--available-w) - (3 * var(--resp-gap)) - (2 * var(--resp-padding))) / 4);
+    }
+
+    /* responsive spacing values used in the cell-size calculation */
+    .nav-dashboard {
+        padding: var(--resp-padding);
+        gap: var(--resp-gap);
+        /* enforce the grid to use that exact square size per cell; include padding
+           in the outer height so the dashboard fits within the viewport bottom. */
+        width: var(--available-w);
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: repeat(4, var(--cell-size-sm));
+        grid-auto-rows: var(--cell-size-sm);
+        /* outer height = cell height + top & bottom padding */
+        height: calc(var(--cell-size-sm) + (2 * var(--resp-padding)));
+    }
+
+    .stat-tile .stat-value {
+        font-size: 4cqh;
+    }
+
+    .nav-square .wind-speed {
+        font-size: 3.5cqh;
+    }
+
+    .nav-square .wind-speed-units {
+        top: 70%;
+        font-size: 1.5cqh;
+    }
+
+    .nav-square { border-radius: 4px; }
+
+    /* make the toggle height match the dashboard outer height (cell + top/bottom padding) */
+    .nav-toggle {
+        min-width: 22px;
+        padding-left: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+        padding-right: calc((var(--nav-toggle-hit) - var(--nav-toggle-w)) / 2);
+        height: calc(var(--cell-size-sm) + (2 * var(--resp-padding)));
+    }
+}
+
+/* On very small screens, keep the dashboard off to the side to avoid covering main content */
+@media (max-width: 360px) {
+    .nav-dashboard { display: none; }
+    .nav-toggle { display: none; }
+}
+
+@media (orientation: landscape) and (max-height: 430px) {
+    :root { --nd-gap: 2px; }
+
+    .stat-tile .stat-title {
+        font-size: 3.5cqh;
+    }
+
+    .stat-tile .stat-value {
+        font-size: 7cqh;
+    }
+
+    .stat-tile .stat-units {
+        font-size: 4cqh;
+    }
+
+    .nav-square .wind-speed {
+        font-size: 7cqh;
+    }
+
+    .nav-square .wind-speed-units {
+        top: 70%;
+        font-size: 2.5cqh;
+    }
+}
+
+/* Landscape layout: single column with 4 rows (wind tile on top). The dashboard's
+   controlling size is its width (16vw). The dashboard + toggle span the full viewport height.
+   The dashboard is flush to the right edge and the toggle sits underneath it at the bottom-right. */
+@media (orientation: landscape) {
+    /* compute sizes on the container so both children can read them. We must ensure
+       that 4 * tile + gaps + paddings + toggle_height <= 100vh. To guarantee this, we
+       compute the tile inner width as the minimum of the width-constrained size (dashboard width)
+       and the height-constrained size (available viewport height minus toggle). */
+    #dashboard-container {
+        right: 0; /* flush to right edge */
+        bottom: 0;
+        --ls-width: 16vw; /* desired dashboard width */
+        --ls-padding: var(--nd-gap);
+        --ls-gap: var(--nd-gap);
+        /* choose a toggle visual length when rotated; use the interactive hit width as default */
+        --ls-toggle-h: var(--nav-toggle-hit);
+        /* width-limited inner tile size (available inner width of the dashboard) */
+        --ls-inner-from-width: calc(var(--ls-width) - (2 * var(--ls-padding)));
+        /* height-limited inner tile size so that 4 tiles + gaps + paddings + toggle fit 100vh */
+        --ls-inner-from-height: calc((100vh - var(--ls-toggle-h) - (2 * var(--ls-padding)) - (3 * var(--ls-gap))) / 4);
+        /* cap tile size so dashboard height never exceeds 800px */
+        --ls-inner-from-maxheight: calc((800px - (2 * var(--ls-padding)) - (3 * var(--ls-gap))) / 4);
+        /* final inner tile size is the smallest of the width, height, and maxheight constraints */
+        --ls-inner-w: min(var(--ls-inner-from-width), var(--ls-inner-from-height), var(--ls-inner-from-maxheight));
+        --ls-dash-h: calc((var(--ls-inner-w) * 4) + (3 * var(--ls-gap)) + (2 * var(--ls-padding)));
+        --ls-dash-w: calc(var(--ls-inner-w) + (2 * var(--ls-padding)));
+        --ls-toggle-h-actual: max(var(--ls-toggle-h), calc(0px));
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end; /* align children to right edge */
+        justify-content: flex-start; /* stack dashboard then toggle with no extra gap */
+        box-sizing: border-box;
+        width: var(--ls-dash-w);
+    }
+
+    .nav-dashboard {
+        width: 100%; /* fill the container width which equals --ls-dash-w */
+        box-sizing: border-box;
+        padding: var(--ls-padding);
+        gap: var(--ls-gap);
+        display: grid;
+        grid-template-columns: 1fr; /* one column */
+        grid-auto-rows: var(--ls-inner-w); /* each row is square (height == inner width) */
+        grid-template-rows: repeat(4, var(--ls-inner-w));
+        height: var(--ls-dash-h);
+        transform-origin: center bottom; /* collapse toward the bottom (where toggle sits) */
+        transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    /* vertical collapse: use scaleY in landscape */
+    .nav-dashboard.collapsed {
+        transform: scaleY(var(--dash-scale, 0.12));
+        pointer-events: none;
+    }
+
+    /* Toggle sits at the bottom inside the container. Rotate it 90deg so it runs along
+       the right edge; its visual length (after rotation) will match the computed toggle height. */
+    .nav-toggle {
+        position: relative; /* flow inside the container */
+        align-self: flex-end;
+        width: 100%; /* match dashboard width */
+        /* use the interactive hit width as the toggle's thickness (unrotated) */
+        height: var(--ls-toggle-h);
+        box-sizing: border-box;
+        transform: rotate(0deg);
+        transform-origin: center center;
+        margin: 0; /* ensure toggle sits directly under dashboard with no gap */
+    }
+
+    /* Adjust chevron rotation so it looks correct when the button is rotated */
+    #nav-dashboard + .nav-toggle svg { transform: rotate(90deg); }
+    #nav-dashboard.collapsed + .nav-toggle svg { transform: rotate(270deg); }
+}

@@ -33,6 +33,17 @@ export default class TrackView {
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
         this.dashboard = dashboard;
+        // If a NavDashboard instance was provided, ensure it's visible so TrackView
+        // can update tiles immediately. The dashboard instance is expected to have
+        // been initialized by the caller (main.js).
+        try {
+            if (this.dashboard && typeof this.dashboard.show === 'function') {
+                this.dashboard.show(true);
+            }
+        } catch (err) {
+            // ignore any errors to avoid breaking TrackView creation
+            console.error('Error showing NavDashboard from TrackView:', err);
+        }
         this.prevPointData = null;
         this.centerMap = centerMap;
 
@@ -143,12 +154,15 @@ export default class TrackView {
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {
                 this.markers.push(this.placeMarker(element, arrowSvg));
-            }
-            if (this.dashboard) {
-                this.dashboard.setWind(element.AWA, element.AWS);
-                this.dashboard.setSOG(element.SOG);
-                this.dashboard.setDepth(element.Depth);
-                this.dashboard.setDistance(element.Distance);
+                if (this.dashboard) {
+                    this.dashboard.setWind(
+                        UnitManager.convertWindAngle(element.AWA),
+                        UnitManager.convertValue('AWS', element.AWS)
+                    );
+                    this.dashboard.setSOG(UnitManager.convertValue('SOG', element.SOG));
+                    this.dashboard.setDepth(UnitManager.convertValue('Depth', element.Depth));
+                    this.dashboard.setDistance(UnitManager.convertValue('Distance', element.Distance));
+                }
             }
         });
     }
@@ -207,6 +221,7 @@ export default class TrackView {
             this.trackPoints = [];
             this.prevPointData = null;
             this.map = null;
+            this.dashboard = null;
         } catch (err) {
             console.error('Error destroying TrackView:', err);
         }

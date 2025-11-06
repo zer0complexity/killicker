@@ -1,8 +1,8 @@
 import Logger from './logger.js';
 import MapMenu from './mapMenu.js';
-import Dashboard from './dashboard.js';
 import TrackManager from './trackManager.js';
 import TrackView from './trackView.js';
+import NavDashboard from './navDashboard.js';
 
 
 // module-level singletons (created in main.js)
@@ -85,6 +85,12 @@ initMap().then(async (m) => {
     // Initialize TrackManager and create initial TrackView
     await initTrackManager();
 
+    // Create a NavDashboard instance and initialize it. We'll pass this
+    // instance into TrackView when following the live track so TrackView
+    // can update tiles / wind instruments.
+    const navDashboard = new NavDashboard();
+    navDashboard.init();
+
     const liveTrackColour = "#ff9000";
     const trackColours = [
         "#5aff1a",
@@ -123,6 +129,14 @@ initMap().then(async (m) => {
         await createTrackView(trackId, colour, centerMap, dashboard);
         menu.setTrackSwatch(trackId, colour);
         menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
+        if (dashboard && typeof dashboard.hide === 'function') {
+            // Register a listener for live track updates to hide the dashboard when deactivated
+            trackManager.registerLiveTrackListener((liveTrackId) => {
+                if (liveTrackId === null) {
+                    dashboard.hide();
+                }
+            });
+        }
     };
     const deactivateTrack = (trackId) => {
         if (!trackId) return;
@@ -154,10 +168,9 @@ initMap().then(async (m) => {
                 if (!liveTrackId) return;
                 try {
                     if (checked) {
-                        // Create dashboard overlay (wind instrument + numeric tiles)
-                        // const dashboard = new Dashboard('#dashboard-container');
-                        // Live track always centers map on activation
-                        await activateTrack(liveTrackId, liveTrackColour, true);//, dashboard);
+                        // Live track always centers map on activation; pass the NavDashboard
+                        // instance so the TrackView can update dashboard tiles and wind.
+                        await activateTrack(liveTrackId, liveTrackColour, true, navDashboard);
                     } else {
                         deactivateTrack(liveTrackId);
                     }
