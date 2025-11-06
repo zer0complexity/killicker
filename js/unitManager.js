@@ -12,28 +12,48 @@ export class UnitManager {
 		switch (key) {
 			case 'Depth':
 				// Depth in meters -> feet. Use '--' for sentinel large values.
-				return { value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--', unit: 'ft' };
+				return {
+                    value: value < 42000000 ? (value * 3.28084).toFixed(value > 3 ? 0 : 1) : '--',
+                    unit: 'ft',
+                    unitSpace: ' '
+                };
 			case 'AWA':
 				// Apparent wind angle (radians) -> degrees, indicate side
-				return { value: (Math.abs(value) * (180 / Math.PI)).toFixed(0), unit: `° ${value < 0 ? 'port' : 'starboard'}` };
+				return {
+                    value: (Math.abs(value) * (180 / Math.PI)).toFixed(0),
+                    unit: `° ${value < 0 ? 'port' : 'starboard'}`,
+                    unitSpace: ''
+                };
 			case 'AWS':
 			case 'SOG':
 				// Speed in m/s -> knots
-				return { value: (value * 1.94384).toFixed(value === 0 ? 0 : value < 10 ? 1 : 0), unit: 'knots' };
+				return {
+                    value: (value * 1.94384).toFixed(value === 0 ? 0 : value < 10 ? 1 : 0),
+                    unit: 'knots',
+                    unitSpace: ' '
+                };
 			case 'COG':
 				// Course over ground in radians -> degrees True
-				return { value: (value * (180 / Math.PI)).toFixed(0), unit: '° T' };
+				return {
+                    value: (value * (180 / Math.PI)).toFixed(0),
+                    unit: '° T',
+                    unitSpace: ''
+                };
 			case 'Distance':
 				// Meters -> nautical miles
-				return { value: (value * 0.000539957).toFixed(1), unit: 'nm' };
+				return {
+                    value: (value * 0.000539957).toFixed(1),
+                    unit: 'nm',
+                    unitSpace: ' '
+                };
 			default:
-				return { value: value, unit: '' };
+				return { value: value, unit: '', unitSpace: '' };
 		}
 	}
 
     static convertWindAngle(angleRadians) {
         let angleDegrees = angleRadians * (180 / Math.PI);
-        return { value: angleDegrees, unit: '°' };
+        return { value: angleDegrees, unit: '°', unitSpace: '' };
     }
 }
 

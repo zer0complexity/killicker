@@ -114,7 +114,9 @@ export default class TrackView {
                 for (const key in pointData) {
                     if (key !== 'position' && key !== 'timestamp' && pointData[key] !== undefined) {
                         const convertedValue = UnitManager.convertValue(key, pointData[key]);
-                        metadataLines.push(`<strong>${key}:</strong> ${convertedValue.value}${convertedValue.unit}`);
+                        metadataLines.push(
+                            `<strong>${key}:</strong> ${convertedValue.value}${convertedValue.unitSpace}${convertedValue.unit}`
+                        );
                     }
                 }
                 this.infoWindow.setContent(`
