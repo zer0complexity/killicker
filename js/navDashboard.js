@@ -124,9 +124,8 @@ export default class NavDashboard {
 
     // Wind gauge API
     setWind(convertedAngle, convertedSpeed) {
-        console.log('Setting wind gauge:', convertedAngle, convertedSpeed);
         if (this.needle) {
-            this.needle.style.transform = `translateX(-50%) rotate(${convertedAngle.value}deg)`;
+            this.needle.style.transform = `rotate(${(180 + convertedAngle.value).toFixed(0)}deg)`;
         }
         if (this.speedEl) {
             this.speedEl.textContent = convertedSpeed.value;
