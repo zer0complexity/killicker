@@ -124,7 +124,13 @@ initMap().then(async (m) => {
     const getTrackColour = (trackId) => {
         if (trackId === trackManager.getLiveTrackId()) return liveTrackColour;
         if (trackColourCache.has(trackId)) return trackColourCache.get(trackId);
-        const idx = trackManager.getTracks().findIndex(t => t.id === trackId);
+        // Derive section (year) from trackId format YYYYMMDD-HHmm
+        let idx = -1;
+        if (trackId && typeof trackId === 'string' && trackId.length >= 4) {
+            const year = trackId.slice(0,4);
+            const section = trackManager.getTracks(year);
+            idx = section.findIndex(t => t.id === trackId);
+        }
         const colour = trackColours[(idx >= 0 ? idx : 0) % trackColours.length];
         trackColourCache.set(trackId, colour);
         return colour;
@@ -159,7 +165,6 @@ initMap().then(async (m) => {
     // Create the map menu UI and populate with tracks
     const menu = new MapMenu(
         map,
-        trackManager.getTracks(),
         async (trackId, checked) => {
             try {
                 if (checked) await activateTrack(trackId, null, activeTrackViews.size === 0);
@@ -190,8 +195,21 @@ initMap().then(async (m) => {
         }
     );
 
-    // Keep the menu in sync with tracks.json changes
-    trackManager.registerTracksListener(menu.setTracks.bind(menu));
+    // Register tracks listener: TrackManager will call listeners with (sectionId, tracks)
+    // Each call updates the named section in the menu. If the section doesn't exist
+    // MapMenu.updateSection will create it (using sectionId as title).
+    trackManager.registerTracksListener((sectionId, tracks) => {
+        try {
+            // If tracks is falsy or empty, remove the section; otherwise update/create it.
+            if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
+                menu.removeSection(sectionId);
+            } else {
+                menu.updateSection(sectionId, tracks);
+            }
+        } catch (err) {
+            console.error('Error updating menu section from tracks listener:', err);
+        }
+    });
 
     // Keep the menu in sync with live track changes
     trackManager.registerLiveTrackListener((liveTrackId) => {
