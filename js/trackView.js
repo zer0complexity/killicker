@@ -76,9 +76,19 @@ export default class TrackView {
 
         // Rotate the arrow around its center if COG (radians) is present
         let angle = null;
-        if (pointData && typeof pointData.COG === 'number' && isFinite(pointData.COG)) {
-            angle = (pointData.COG * (180 / Math.PI)) % 360; // radians -> degrees
-            if (angle < 0) angle += 360;
+        if (typeof pointData.COG === 'number' && isFinite(pointData.COG)) {
+            angle = (UnitManager.toDegrees(pointData.COG) + 360) % 360;
+        } else {
+            if (this.prevPointData && this.prevPointData.position) {
+                // Fallback: compute bearing from previous point to current point
+                const lat1 = UnitManager.toRadians(this.prevPointData.position.lat);
+                const lat2 = UnitManager.toRadians(pointData.position.lat);
+                const dLon = UnitManager.toRadians(pointData.position.lng - this.prevPointData.position.lng);
+                const cosLat2 = Math.cos(lat2);
+                const y = Math.sin(dLon) * cosLat2;
+                const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * cosLat2 * Math.cos(dLon);
+                angle = (UnitManager.toDegrees(Math.atan2(y, x)) + 360) % 360;
+            }
         }
         if (angle !== null) {
             // Prefer transforming the outer <g> that contains the geometry
@@ -144,7 +154,6 @@ export default class TrackView {
         // Treat incoming points as a delta to append
         points.forEach(element => {
             this.addPointToTrack(element.position);
-            this.prevPointData = element;
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {
                 this.markers.push(this.placeMarker(element, arrowSvg));
@@ -158,6 +167,7 @@ export default class TrackView {
                     this.dashboard.setDistance(UnitManager.convertValue('Distance', element.Distance));
                 }
             }
+            this.prevPointData = element;
         });
     }
 
