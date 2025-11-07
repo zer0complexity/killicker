@@ -81,6 +81,14 @@ initMap().then(async (m) => {
         // Update marker visibility for all TrackViews
         activeTrackViews.forEach(entry => entry.trackView.updateMarkers());
     });
+    // Close any open info window when clicking on the map
+    map.addListener('click', () => {
+        activeTrackViews.forEach(entry => {
+            if (entry.trackView.infoWindow) {
+                entry.trackView.infoWindow.close();
+            }
+        });
+    });
 
     // Initialize TrackManager and create initial TrackView
     await initTrackManager();
