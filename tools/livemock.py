@@ -60,7 +60,6 @@ def export_day_track(args):
         influx_token=token,
         influx_org="navi",
         influx_bucket="killick",
-        json_file_path="0xDEADBEEF",
     )
     start_date = get_datetime(args.start_date)
     if start_date is None:

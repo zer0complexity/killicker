@@ -4,11 +4,10 @@ import UnitManager from './unitManager.js';
 export default class MapMenu {
     /**
      * @param {google.maps.Map} map
-     * @param {Array} tracks - Array of track metadata objects {id, pointCount}
      * @param {Function} onChange - Callback (trackId, checked) when checkbox toggled
      * @param {Object} options - {hasLiveTrack: boolean, liveTrackId: string|null}
      */
-    constructor(map, tracks = [], onChange = () => {}, options = {}) {
+    constructor(map, onChange = () => {}, options = {}) {
         this.map = map;
         this.onChange = onChange;
         this.onLiveTrackFollowChange = options.onLiveTrackFollowChange || (() => {});
@@ -71,12 +70,9 @@ export default class MapMenu {
         this.liveSection.content.appendChild(liveContent);
         this.body.appendChild(this.liveSection.container);
 
-        // Log Section
-        this.logSection = this._createSection('Log', 'log');
-        this.list = document.createElement('div');
-        this.list.className = 'map-menu-list';
-        this.logSection.content.appendChild(this.list);
-        this.body.appendChild(this.logSection.container);
+        // Sections map: sectionId -> { section, list, title }
+        // Sections (including any 'Log'-like groups) must be added explicitly via addSection()
+        this.sections = new Map();
 
         // Toggle main body visibility when header clicked
         this.header.addEventListener('click', () => {
@@ -86,8 +82,8 @@ export default class MapMenu {
         // Insert into map controls
         this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(this.container);
 
+        // Map of trackId -> input element (a track appears in exactly one section)
         this.checkboxes = new Map();
-        this.setTracks(tracks);
         this._updateLiveTrackSection();
 
         // Default: open menu on load
@@ -169,9 +165,12 @@ export default class MapMenu {
                     console.error('Error in live track follow handler:', err);
                 }
             }
-            // Close log section when live track is active
-            if (this.logSection.isOpen) {
-                this._toggleSection(this.logSection);
+            // Close other sections when live track enabled
+            for (const [sid, entry] of this.sections) {
+                if (sid === 'live-track') continue;
+                if (entry.section.isOpen) {
+                    this._toggleSection(entry.section);
+                }
             }
         } else {
             this.liveSection.container.classList.add('disabled');
@@ -189,9 +188,13 @@ export default class MapMenu {
                     console.error('Error in live track follow handler:', err);
                 }
             }
-            // Open log section when no live track
-            if (!this.logSection.isOpen) {
-                this._toggleSection(this.logSection);
+            // Open all sections with checked tracks when live track disabled
+            for (const [sid, entry] of this.sections) {
+                const inputs = Array.from(entry.list.querySelectorAll('input[type="checkbox"]'));
+                const anyChecked = inputs.some(input => input.checked);
+                if (anyChecked && !entry.section.isOpen) {
+                    this._toggleSection(entry.section);
+                }
             }
         }
     }
@@ -208,77 +211,54 @@ export default class MapMenu {
     }
 
     /**
-     * Replace the track list in the menu
-     * @param {Array} tracks
+     * Internal helper to create and append a track row into a list container.
+     * Ensures the checkbox is registered in this.checkboxes (Set per track id).
+     * @param {Element} listContainer
+     * @param {Object} track
+     * @param {Set} previouslySelected
      */
-    setTracks(tracks = []) {
-        this.addSelectedDistance(0);
+    _addTrackRow(listContainer, track) {
+        if (track.pointCount === 0) return; // skip empty tracks
+        const row = document.createElement('div');
+        row.className = 'map-menu-row';
 
-        // Capture currently selected track IDs to preserve selection
-        const previouslySelected = new Set();
-        if (this.checkboxes && this.checkboxes.size) {
-            for (const [id, input] of this.checkboxes.entries()) {
-                if (input && input.checked) previouslySelected.add(id);
-            }
-        }
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.dataset.trackId = track.id;
+        input.className = 'map-menu-checkbox';
 
-        // Clear existing
-        this.list.innerHTML = '';
-        this.checkboxes.clear();
+        const label = document.createElement('label');
+        const distance = UnitManager.convertValue('Distance', track.Distance || 0);
+        label.textContent = `${MapMenu.beautifyTrackId(track.id)} (${distance.value} ${distance.unit})`;
+        label.className = 'map-menu-label';
 
-        // Create a list item for each track
-        tracks.forEach(track => {
-            if (track.pointCount === 0) return; // skip empty tracks
-            const row = document.createElement('div');
-            row.className = 'map-menu-row';
-
-            const input = document.createElement('input');
-            input.type = 'checkbox';
-            input.dataset.trackId = track.id;
-            input.className = 'map-menu-checkbox';
-
-            const label = document.createElement('label');
-            const distance = UnitManager.convertValue('Distance', track.Distance || 0);
-            label.textContent = `${MapMenu.beautifyTrackId(track.id)} (${distance.value} ${distance.unit})`;
-            label.className = 'map-menu-label';
-
-            input.addEventListener('change', (ev) => {
-                const checked = ev.target.checked;
-                const trackId = ev.target.dataset.trackId;
-                try {
-                    this.onChange(trackId, checked);
-                } catch (err) {
-                    console.error('Error in MapMenu onChange handler:', err);
-                }
-            });
-
-            // clicking label toggles checkbox via label click handler below
-            // keep rows non-focusable by default
-
-            // clicking label toggles checkbox
-            label.addEventListener('click', () => input.click());
-
-            row.appendChild(input);
-            row.appendChild(label);
-            this.list.appendChild(row);
-
-            this.checkboxes.set(track.id, input);
-
-            // If we already have a swatch colour for this track, apply it now
-            const colour = this.swatchColours.get(track.id);
-            if (colour) {
-                // If we have a swatch colour, the checkbox has to be checked to show it.
-                input.checked = true;
-                try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
-                if (!previouslySelected.has(track.id)) {
-                    // If this track wasn't previously selected, add its distance. This was a live track being followed
-                    this.addSelectedDistance(track.Distance);
-                }
+        input.addEventListener('change', (ev) => {
+            const checked = ev.target.checked;
+            const trackId = ev.target.dataset.trackId;
+            try {
+                this.onChange(trackId, checked);
+            } catch (err) {
+                console.error('Error in MapMenu onChange handler:', err);
             }
         });
 
-        // Re-apply previous selections without triggering change events
-        previouslySelected.forEach(id => this.setChecked(id, true));
+        // clicking label toggles checkbox
+        label.addEventListener('click', () => input.click());
+
+        row.appendChild(input);
+        row.appendChild(label);
+        listContainer.appendChild(row);
+
+        // store input in map (single input per track id)
+        this.checkboxes.set(track.id, input);
+
+        // If we already have a swatch colour for this track, apply it now
+        const colour = this.swatchColours.get(track.id);
+        if (colour) {
+            input.checked = true;
+            try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
+            this.addSelectedDistance(track.Distance);
+        }
     }
 
     /**
@@ -288,26 +268,34 @@ export default class MapMenu {
      */
     setTrackSwatch(trackId, colour) {
         this.swatchColours.set(trackId, colour);
-        // Try to find a normal log row first
-        let label = null;
+        // Try to find the row label for this track
         const input = this.checkboxes.get(trackId);
         if (input && input.parentElement) {
             const row = input.parentElement;
-            label = row.querySelector('.map-menu-label');
+            const label = row.querySelector('.map-menu-label');
+            if (label) {
+                let swatch = label.querySelector('.map-menu-swatch');
+                if (!swatch) {
+                    swatch = document.createElement('span');
+                    swatch.className = 'map-menu-swatch';
+                    label.appendChild(swatch);
+                }
+                swatch.style.backgroundColor = colour;
+                swatch.title = `Colour: ${colour}`;
+                return;
+            }
         }
-        // If not found in log rows, and this is the current live track, use the live track label
-        if (!label && this.liveTrackId && trackId === this.liveTrackId) {
-            label = this.liveFollowLabel;
+        // Fallback: if this is the current live track, use the live track label
+        if (this.liveTrackId && trackId === this.liveTrackId) {
+            let swatch = this.liveFollowLabel.querySelector('.map-menu-swatch');
+            if (!swatch) {
+                swatch = document.createElement('span');
+                swatch.className = 'map-menu-swatch';
+                this.liveFollowLabel.appendChild(swatch);
+            }
+            swatch.style.backgroundColor = colour;
+            swatch.title = `Colour: ${colour}`;
         }
-        if (!label) return;
-        let swatch = label.querySelector('.map-menu-swatch');
-        if (!swatch) {
-            swatch = document.createElement('span');
-            swatch.className = 'map-menu-swatch';
-            label.appendChild(swatch);
-        }
-        swatch.style.backgroundColor = colour;
-        swatch.title = `Colour: ${colour}`;
     }
 
     /**
@@ -317,21 +305,20 @@ export default class MapMenu {
     removeTrackSwatch(trackId) {
         // Clear stored swatch colour so it won't be reapplied
         this.swatchColours.delete(trackId);
-        // Try to find a normal log row first
-        let label = null;
+        // Remove swatch from the track's row (if present)
         const input = this.checkboxes.get(trackId);
         if (input && input.parentElement) {
             const row = input.parentElement;
-            label = row.querySelector('.map-menu-label');
+            const label = row.querySelector('.map-menu-label');
+            if (label) {
+                const swatch = label.querySelector('.map-menu-swatch');
+                if (swatch && swatch.parentElement === label) label.removeChild(swatch);
+            }
         }
-        // If not found in log rows, and this is the current live track, use the live track label
-        if (!label && this.liveTrackId && trackId === this.liveTrackId) {
-            label = this.liveFollowLabel;
-        }
-        if (!label) return;
-        const swatch = label.querySelector('.map-menu-swatch');
-        if (swatch && swatch.parentElement === label) {
-            label.removeChild(swatch);
+        // Also remove from live follow label if present
+        if (this.liveTrackId && trackId === this.liveTrackId) {
+            const swatch = this.liveFollowLabel.querySelector('.map-menu-swatch');
+            if (swatch && swatch.parentElement === this.liveFollowLabel) this.liveFollowLabel.removeChild(swatch);
         }
     }
 
@@ -342,7 +329,8 @@ export default class MapMenu {
      */
     setChecked(trackId, checked) {
         const input = this.checkboxes.get(trackId);
-        if (input) input.checked = !!checked;
+        if (!input) return;
+        input.checked = !!checked;
     }
 
     /**
@@ -439,5 +427,92 @@ export default class MapMenu {
         }
         // Fallback: do nothing
         return trackId;
+    }
+
+    /**
+     * Add a new Log section with the given title and initial tracks.
+     * Returns the generated sectionId.
+     */
+    addSection(sectionId, tracks = []) {
+        const section = this._createSection(sectionId, sectionId);
+        const list = document.createElement('div');
+        list.className = 'map-menu-list';
+        section.content.appendChild(list);
+
+        // Insert into body keeping sections sorted by title in reverse alphabetical order
+        const newTitle = String(sectionId);
+        let inserted = false;
+        // Find existing section containers (excluding liveSection) in DOM order
+        const existing = Array.from(this.body.querySelectorAll('.map-menu-section')).filter(el => el.dataset.sectionId !== 'live-track');
+        for (const el of existing) {
+            const sid = el.dataset.sectionId;
+            const entry = this.sections.get(sid);
+            const existingTitle = entry ? entry.title : el.querySelector('.map-menu-section-header span:last-child')?.textContent || '';
+            // If newTitle > existingTitle lexicographically, insert before (reverse alphabetical)
+            if (newTitle.localeCompare(existingTitle) > 0) {
+                this.body.insertBefore(section.container, el);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            // append after existing sections; keep after liveSection
+            this.body.appendChild(section.container);
+        }
+
+        this.sections.set(sectionId, { section, list, title: newTitle });
+
+        // Populate tracks into the section
+        for (const t of tracks) this._addTrackRow(list, t);
+
+        return sectionId;
+    }
+
+    /**
+     * Update an existing section's tracks, or create the section if it doesn't exist.
+     * If the section is created via this call the sectionId is used as the title.
+     * @param {string} sectionId
+     * @param {Array} tracks
+     */
+    updateSection(sectionId, tracks = []) {
+        const entry = this.sections.get(sectionId);
+        if (!entry) {
+            // Create a new section with title == sectionId
+            this.addSection(sectionId, tracks, sectionId);
+            return;
+        }
+        const { list } = entry;
+
+        // Remove existing inputs for this list from the checkboxes map
+        const existingInputs = Array.from(list.querySelectorAll('input[data-track-id]'));
+        for (const input of existingInputs) {
+            const id = input.dataset.trackId;
+            if (this.checkboxes.get(id) === input) this.checkboxes.delete(id);
+        }
+
+        // Clear and populate
+        list.innerHTML = '';
+        for (const t of tracks) this._addTrackRow(list, t);
+    }
+
+    /**
+     * Remove a previously added section by id.
+     * @param {string} sectionId
+     */
+    removeSection(sectionId) {
+        const entry = this.sections.get(sectionId);
+        if (!entry) return;
+        const { section, list } = entry;
+        // Remove any inputs from checkboxes map
+        const inputs = Array.from(list.querySelectorAll('input[data-track-id]'));
+        for (const input of inputs) {
+            const id = input.dataset.trackId;
+            if (this.checkboxes.get(id) === input) this.checkboxes.delete(id);
+        }
+        // Remove DOM
+        if (section && section.container && section.container.parentElement) {
+            section.container.parentElement.removeChild(section.container);
+        }
+        this.sections.delete(sectionId);
     }
 }
