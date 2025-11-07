@@ -55,6 +55,14 @@ export class UnitManager {
         let angleDegrees = angleRadians * (180 / Math.PI);
         return { value: angleDegrees, unit: '°', unitSpace: '' };
     }
+
+    static toRadians(degrees) {
+        return degrees * (Math.PI / 180);
+    }
+
+    static toDegrees(radians) {
+        return radians * (180 / Math.PI);
+    }
 }
 
 export default UnitManager;
