@@ -188,16 +188,17 @@ export default class TrackManager {
                 // Fetch update.json to check for tracks.json and live track updates
                 const updateData = await this._fetchJson('update.json');
 
-                // Check for per-year updates listed in update.json. The update.json file
-                // now contains section ids (years like "2025") with an { edited: ISO } field
-                // for each yearly tracks file that is available. For each year from 2025 to
-                // the current UTC year, compare timestamps and fetch the yearly file if
-                // the timestamp is newer than our cache. Missing or empty files remove the section.
-                const now = new Date();
-                const currentYear = now.getUTCFullYear();
+                // Check for per-section entries listed in update.json. The update.json file
+                // contains section ids (years like "2025") with an { edited: ISO } field
+                // for each yearly tracks file that is available. Iterate the year keys found
+                // in update.json and fetch the yearly file if its edited timestamp is newer
+                // than our cache. Also remove any cached sections that are no longer present
+                // in update.json.
+                const updateKeys = Object.keys(updateData).filter(k => /^\d{4}$/.test(k)).sort();
+                const seenUpdateKeys = new Set(updateKeys);
 
-                for (let year = 2025; year <= currentYear; year++) {
-                    const yearKey = String(year);
+                // Process each key found in update.json
+                for (const yearKey of updateKeys) {
                     const yearMeta = updateData[yearKey];
                     const editedIso = yearMeta?.edited;
                     let editedTs = null;
@@ -209,7 +210,7 @@ export default class TrackManager {
 
                     if (editedTs && editedTs > prevTs) {
                         // Yearly file updated — fetch it
-                        const rel = `${year}.json`;
+                        const rel = `${yearKey}.json`;
                         try {
                             const data = await this._fetchJson(rel);
                             const tracksForYear = Array.isArray(data.tracks) ? data.tracks : [];
@@ -225,7 +226,7 @@ export default class TrackManager {
                                 this.sectionTimestamps.set(yearKey, editedTs);
                                 // Ensure the per-section tracks Map is updated
                                 this.tracks.set(yearKey, tracksForYear);
-                                // continue to next year
+                                // continue to next key
                                 continue;
                             }
                             // File fetched but contains no tracks — remove section if present
@@ -247,7 +248,7 @@ export default class TrackManager {
                             }
                         }
                     } else if (!editedTs) {
-                        // No metadata for this year in update.json — if we previously had a section, remove it
+                        // No edited timestamp for this key — treat as removal
                         if (this.sectionTracks.has(yearKey)) {
                             this.sectionTracks.delete(yearKey);
                             this.sectionTimestamps.delete(yearKey);
@@ -256,8 +257,7 @@ export default class TrackManager {
                             this.tracks.delete(yearKey);
                         }
                     } else {
-                        // Year exists in update.json but timestamp not newer than cached; we still want to
-                        // include previously-cached tracks in the aggregated list
+                        // Key exists in update.json but timestamp not newer than cached; ensure cached section is loaded
                         const prevJson = this.sectionTracks.get(yearKey);
                         if (prevJson) {
                             try {
@@ -268,6 +268,16 @@ export default class TrackManager {
                                 // ignore parse errors here
                             }
                         }
+                    }
+                }
+
+                // Remove any previously-cached sections that are no longer present in update.json
+                for (const existingKey of Array.from(this.sectionTracks.keys())) {
+                    if (!seenUpdateKeys.has(existingKey)) {
+                        this.sectionTracks.delete(existingKey);
+                        this.sectionTimestamps.delete(existingKey);
+                        this.tracks.delete(existingKey);
+                        this._safeNotify(this.tracksListeners, 'tracks', existingKey, null);
                     }
                 }
 
