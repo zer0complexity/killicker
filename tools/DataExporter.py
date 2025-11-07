@@ -7,7 +7,6 @@ class DataExporter:
     def __init__(self, data_dir):
         self.data_dir = data_dir
         self.update_file = os.path.join(self.data_dir, "update.json")
-        self.tracks_file = os.path.join(self.data_dir, "tracks.json")
 
 
     def write_track(self, track_id, points_data, update_tracks_index=True, extend=True):
@@ -48,7 +47,8 @@ class DataExporter:
         Update the tracks index JSON file with the given track ID, point count, and track distance.
         """
         try:
-            index_data = self._read_json_file(self.tracks_file)
+            tracks_file = self._get_tracks_file_path(track_id)
+            index_data = self._read_json_file(tracks_file)
             tracks = index_data["tracks"] if "tracks" in index_data else []
 
             if point_count < 0:
@@ -66,22 +66,23 @@ class DataExporter:
 
             # Sort index_data tracks by track ID
             index_data["tracks"] = sorted(index_data["tracks"], key=lambda x: x["id"])
-            self._write_json_file(self.tracks_file, index_data)
+            self._write_json_file(tracks_file, index_data)
 
             # Update tracks entry in update.json to reflect last edit time of tracks.json
-            update_data = self._read_json_file(self.update_file, default_value={"tracks": {"edited": None}})
-            update_data["tracks"]["edited"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            year = track_id[:4]
+            update_data = self._read_json_file(self.update_file, default_value={f"{year}": {"edited": None}})
+            update_data[year]["edited"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self._write_json_file(self.update_file, update_data)
-            print(f"Tracks index updated in {self.tracks_file}.")
+            print(f"Tracks index updated in {tracks_file}.")
 
         except Exception as e:
-            print(f"Error updating tracks index in {self.tracks_file}: {e}")
+            print(f"Error updating tracks index in {tracks_file}: {e}")
 
 
     def start_live_track(self, track_id):
         # Add or update track entry in tracks.json. The track should show 0 points, and the real number of points will
         # be written to update.json
-        index_data = self._read_json_file(self.tracks_file)
+        index_data = self._read_json_file(self._get_tracks_file_path(track_id))
         tracks = index_data["tracks"] if "tracks" in index_data else []
 
         previous_point_count = 0
@@ -147,6 +148,16 @@ class DataExporter:
             print(f"Error removing track file {track_file}: {e}")
         self.update_tracks_index(track_id, -1)
         print(f"Removed track {track_id} from tracks index.")
+
+
+    def _get_tracks_file_path(self, track_id):
+        """
+        Private method to get the tracks index file path for a given track ID.
+
+        Args:
+            track_id: The ID of the track
+        """
+        return os.path.join(self.data_dir, f"{track_id[:4]}.json")
 
 
     def _get_track(self, track_id, tracks):
