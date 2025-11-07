@@ -195,11 +195,6 @@ export default class TrackManager {
                 // the timestamp is newer than our cache. Missing or empty files remove the section.
                 const now = new Date();
                 const currentYear = now.getUTCFullYear();
-                const aggregated = [];
-                const seenIds = new Set();
-
-                // Track whether we fetched any updated sections this poll
-                let anySectionChanged = false;
 
                 for (let year = 2025; year <= currentYear; year++) {
                     const yearKey = String(year);
@@ -218,25 +213,18 @@ export default class TrackManager {
                         try {
                             const data = await this._fetchJson(rel);
                             const tracksForYear = Array.isArray(data.tracks) ? data.tracks : [];
+                            tracksForYear.sort((a, b) => (a.id < b.id ? 1 : -1));
                             if (tracksForYear.length > 0) {
                                 const nextJson = JSON.stringify(tracksForYear);
                                 const prevJson = this.sectionTracks.get(yearKey);
                                 if (!prevJson || prevJson !== nextJson) {
                                     this.sectionTracks.set(yearKey, nextJson);
                                     this._safeNotify(this.tracksListeners, 'tracks', yearKey, tracksForYear);
-                                    anySectionChanged = true;
                                 }
                                 // Update timestamp cache
                                 this.sectionTimestamps.set(yearKey, editedTs);
                                 // Ensure the per-section tracks Map is updated
                                 this.tracks.set(yearKey, tracksForYear);
-                                // Add to aggregated list
-                                for (const t of tracksForYear) {
-                                    if (!seenIds.has(t.id)) {
-                                        aggregated.push(t);
-                                        seenIds.add(t.id);
-                                    }
-                                }
                                 // continue to next year
                                 continue;
                             }
@@ -247,7 +235,6 @@ export default class TrackManager {
                                 this._safeNotify(this.tracksListeners, 'tracks', yearKey, null);
                                 // Remove from per-section tracks Map
                                 this.tracks.delete(yearKey);
-                                anySectionChanged = true;
                             }
                         } catch (e) {
                             // Fetch failure — remove existing section if any
@@ -257,7 +244,6 @@ export default class TrackManager {
                                 this._safeNotify(this.tracksListeners, 'tracks', yearKey, null);
                                 // Remove from per-section tracks Map
                                 this.tracks.delete(yearKey);
-                                anySectionChanged = true;
                             }
                         }
                     } else if (!editedTs) {
@@ -268,7 +254,6 @@ export default class TrackManager {
                             this._safeNotify(this.tracksListeners, 'tracks', yearKey, null);
                             // Remove from per-section tracks Map
                             this.tracks.delete(yearKey);
-                            anySectionChanged = true;
                         }
                     } else {
                         // Year exists in update.json but timestamp not newer than cached; we still want to
@@ -279,30 +264,12 @@ export default class TrackManager {
                                 const tracksForYear = JSON.parse(prevJson);
                                 // Ensure per-section tracks Map contains the cached list
                                 this.tracks.set(yearKey, tracksForYear);
-                                for (const t of tracksForYear) {
-                                    if (!seenIds.has(t.id)) {
-                                        aggregated.push(t);
-                                        seenIds.add(t.id);
-                                    }
-                                }
                             } catch (e) {
                                 // ignore parse errors here
                             }
                         }
                     }
                 }
-
-                // If any section changed, or if we have aggregated tracks from cached sections,
-                // update this.tracks and refresh per-track listeners.
-                if (anySectionChanged || aggregated.length > 0) {
-                    aggregated.sort((a, b) => (a.id < b.id ? 1 : -1));
-                    // Update lastTracksUpdate and refresh per-track listeners for aggregated list
-                    this.lastTracksUpdate = new Date();
-                    for (const meta of aggregated) {
-                        await this._refreshIfIncreased(meta.id, meta.pointCount || 0);
-                    }
-                }
-                // otherwise nothing changed
 
                 // Check for live track updates (if applicable)
                 const liveTrackId = updateData.live?.id || null;
