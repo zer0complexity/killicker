@@ -143,14 +143,6 @@ export default class TrackView {
 
         // Treat incoming points as a delta to append
         points.forEach(element => {
-            if (this.markers.length > 0 && this.prevPointData) {
-                // If the point doesn't have SOG, skip placing a marker
-                if (this.prevPointData.SOG !== undefined) {
-                    this.markers.at(-1).setMap(null);  // Remove the last transparent marker
-                    this.markers.pop();
-                    this.markers.push(this.placeMarker(this.prevPointData, arrowSvg));
-                }
-            }
             this.addPointToTrack(element.position);
             this.prevPointData = element;
             // If the point doesn't have SOG, skip placing a marker
