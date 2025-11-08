@@ -7,11 +7,11 @@
     font-family: Arial, Helvetica, sans-serif;
     font-size: 13px;
     color: #222;
-    /* Keep header visible; contain the body within a fixed viewport slice */
+    /* Keep header visible; allow the body to grow and make the container scroll when open */
     display: flex;
     flex-direction: column;
-    max-height: 70vh;
-    overflow: hidden; /* prevent the container itself from scrolling */
+    max-height: 95vh;
+    overflow: hidden; /* when closed, prevent the container itself from showing overflow */
 }
 
 .map-menu-container:not(.open) {
@@ -58,7 +58,8 @@
 .map-menu-body {
     margin-top: 0;
     padding: 6px;
-    overflow: hidden;
+    /* Allow body content to size vertically; container will scroll when needed */
+    overflow: visible;
     max-height: 0;
     opacity: 0;
     transition: max-height 260ms ease-in-out, opacity 200ms ease-in-out;
@@ -67,10 +68,16 @@
 }
 /* Container open state expands the body */
 .map-menu-container.open .map-menu-body {
-    /* Allow the list to scroll within the body */
+    /* Let the body expand to fill the container when open */
     max-height: none; /* let flex sizing take over */
     opacity: 1;
     flex: 1 1 auto; /* occupy remaining height within the container */
+}
+
+/* When open, the entire container becomes scrollable so a single scrollbar
+   appears for all menu content (header, body, footer) when needed. */
+.map-menu-container.open {
+    overflow-y: auto;
 }
 
 /* Section styles */
@@ -78,7 +85,8 @@
     margin-bottom: 8px;
     border: 1px solid rgba(0,0,0,0.1);
     border-radius: 4px;
-    overflow: hidden;
+    /* allow section header/content to be visible and not clipped by parent */
+    overflow: visible;
 }
 
 .map-menu-section.disabled {
@@ -113,8 +121,9 @@
 }
 
 .map-menu-section.open .map-menu-section-content {
-    max-height: 400px; /* Allow reasonable height for content */
-    overflow-y: auto;
+    /* Allow section content to grow vertically as needed; container handles scrolling */
+    max-height: none;
+    overflow: visible;
 }
 
 /* Fixed controls area at top of the body */
@@ -125,7 +134,8 @@
 /* Scrollable list area */
 .map-menu-list {
     flex: 1 1 auto;
-    overflow-y: auto; /* only the list scrolls */
+    /* Let list grow; container will provide scrolling when necessary */
+    overflow: visible;
     -webkit-overflow-scrolling: touch; /* smooth iOS/Android */
     touch-action: pan-y; /* hint to allow vertical scroll gestures */
     padding: 4px 8px;
