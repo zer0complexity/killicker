@@ -62,6 +62,9 @@
     height: 40px;
     box-sizing: border-box;
     border-radius: 6px;
+    /* Rotate around center and hint for smoother transforms */
+    transform-origin: center center;
+    will-change: transform;
 }
 
 /* Animates the hamburger when open */
