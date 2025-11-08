@@ -130,6 +130,7 @@ initMap().then(async (m) => {
             const year = trackId.slice(0,4);
             const section = trackManager.getTracks(year);
             idx = section.findIndex(t => t.id === trackId);
+            idx += (year * 3); // offset by year to vary colours more
         }
         const colour = trackColours[(idx >= 0 ? idx : 0) % trackColours.length];
         trackColourCache.set(trackId, colour);
