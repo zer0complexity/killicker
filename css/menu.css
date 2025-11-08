@@ -12,6 +12,8 @@
     flex-direction: column;
     max-height: 95vh;
     overflow: hidden; /* when closed, prevent the container itself from showing overflow */
+    /* Animate open/close (width) when the hamburger is clicked */
+    transition: width 260ms cubic-bezier(.2,.8,.2,1), box-shadow 200ms ease;
 }
 
 .map-menu-container:not(.open) {
@@ -32,6 +34,22 @@
     height: 48px;
 }
 
+/* Make the header sticky when the container scrolls so the hamburger stays visible */
+.map-menu-header {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: rgba(255,255,255,0.95);
+    transition: padding-left 260ms cubic-bezier(.2,.8,.2,1);
+}
+
+.map-menu-container.open .map-menu-header {
+    width: 100%;
+    /* Align hamburger to the left when menu is open */
+    justify-content: flex-start;
+    padding-left: 8px;
+}
+
 .map-menu-hamburger {
     font-size: 28px;
     font-weight: bold;
@@ -39,7 +57,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-top: 4px;
+    /* Make the button perfectly square and not taller than the header */
+    width: 40px;
+    height: 40px;
+    box-sizing: border-box;
+    border-radius: 6px;
 }
 
 /* Animates the hamburger when open */
@@ -111,19 +133,30 @@
 .map-menu-section-arrow {
     margin-right: 6px;
     font-size: 10px;
-    transition: transform 150ms ease-in-out;
+    transition: transform 200ms ease-in-out;
 }
 
 .map-menu-section-content {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 250ms ease-in-out;
+    opacity: 0;
+    transition: max-height 300ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease-in-out;
 }
 
+/* Animate section expand/collapse by transitioning max-height. Use a large
+   max-height for the open state to allow content to expand; the container's
+   scrollbar will handle overall overflow. */
 .map-menu-section.open .map-menu-section-content {
-    /* Allow section content to grow vertically as needed; container handles scrolling */
-    max-height: none;
-    overflow: visible;
+    /* Use a large numeric max-height so CSS can animate the expansion.
+       The container scroll handles overall overflow. */
+    max-height: 1200px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+/* Subtle arrow rotation when a section is open */
+.map-menu-section.open .map-menu-section-arrow {
+    transform: rotate(90deg) 200ms ease-in-out;
 }
 
 /* Fixed controls area at top of the body */
@@ -185,8 +218,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.map-menu-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 60;
+    background: rgba(255,255,255,0.95);
+}
+.map-menu-footer {
+    /* animate visibility when menu opens/closes */
+    transition: opacity 220ms ease, max-height 220ms ease, padding 180ms ease;
+    max-height: 80px;
+}
+
 .map-menu-container:not(.open) .map-menu-footer {
-    display: none;
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    pointer-events: none;
 }
 .map-menu-footer-label {
     font-weight: 600;
