@@ -3,4 +3,4 @@
 js/loader.js
 tools/.*influx-token
 tools/__pycache__/
-killicker-data
+shipslog

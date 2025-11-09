@@ -65,9 +65,9 @@ async function initTrackManager() {
 
 // Small helper to configure runtime (data URL, poll interval, logger)
 function getRuntimeConfig() {
-    const isProd = window.location.href.includes('https://zer0complexity.github.io');
+    const isProd = window.location.href.includes('https://daysrun.github.io');
     return {
-        dataUrl: isProd ? 'https://zer0complexity.github.io/killicker-data' : 'killicker-data',
+        dataUrl: isProd ? 'https://daysrun.github.io/shipslog/killick' : 'shipslog/killick',
         pollInterval: isProd ? 60000 : 5000,
         logger: new Logger(isProd ? Logger.ENVIRONMENTS.PROD : Logger.ENVIRONMENTS.DEV, 'TrackManager'),
     };
