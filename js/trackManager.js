@@ -330,7 +330,36 @@ export default class TrackManager {
      */
     async _fetchTrackPoints(trackId) {
         this.logger.debug(`Fetching points for track ${trackId}...`);
-        const data = await this._fetchJson(`${trackId}.json`);
+        
+        // Fetch as text to detect format
+        const response = await fetch(`${this.baseUrl}/${trackId}.json`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const text = await response.text();
+        
+        // Check if this is NDJSON format (newline-delimited JSON)
+        // NDJSON has one JSON object per line with no outer structure
+        if (text.trim().includes('\n')) {
+            // Likely NDJSON format - parse line by line
+            try {
+                const lines = text.trim().split('\n');
+                const points = [];
+                for (const line of lines) {
+                    if (line.trim()) {
+                        points.push(JSON.parse(line));
+                    }
+                }
+                // If we successfully parsed at least one point, return the array
+                if (points.length > 0) {
+                    return points;
+                }
+            } catch (e) {
+                // If NDJSON parsing fails, fall through to try standard JSON
+                this.logger.debug(`Failed to parse as NDJSON, trying standard JSON: ${e.message}`);
+            }
+        }
+        
+        // Fall back to standard JSON format with "points" property
+        const data = JSON.parse(text);
         return data.points || [];
     }
 
