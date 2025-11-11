@@ -324,7 +324,9 @@ export default class TrackManager {
     }
 
     /**
-     * Internal helper to fetch full points array for a track
+     * Internal helper to fetch full points array for a track.
+     * Supports both standard JSON format ({"points": [...]}) and NDJSON format
+     * (one JSON object per line with no "points" property wrapper).
      * @param {string} trackId
      * @returns {Promise<Array>}
      */
