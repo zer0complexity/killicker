@@ -17,7 +17,7 @@ const activeTrackViews = new Map(); // trackId -> { trackView, unregister }
  * @param {boolean} centerMap - Whether to center the map on the first point
  * @returns {Promise<Object>} Promise of { trackView, trackId, unregister }
  */
-async function createTrackView(trackId, trackColour, centerMap = false, dashboard) {
+async function createTrackView(trackId, trackColour, centerMap = false, dashboard, onBoundsChange = null) {
     if (!map) {
         throw new Error('createTrackView called before map initialization; call after initMap completes');
     }
@@ -25,14 +25,20 @@ async function createTrackView(trackId, trackColour, centerMap = false, dashboar
         throw new Error('createTrackView called before TrackManager initialization');
     }
 
-    const tv = new TrackView(map, trackColour, centerMap, dashboard);
+    const tv = new TrackView(map, trackColour, centerMap, dashboard, onBoundsChange);
+
+    // Add to activeTrackViews first so it's included if callback fires during registerListener
+    // Create a placeholder entry that will be updated with unregister function
+    const entry = { trackView: tv, unregister: null };
+    activeTrackViews.set(trackId, entry);
 
     // Register a listener so TrackView receives initial and subsequent updates
     const unregister = await trackManager.registerListener(trackId, (points) => {
         tv.processPoints(points);
     });
 
-    activeTrackViews.set(trackId, { trackView: tv, unregister });
+    // Update the entry with the unregister function
+    entry.unregister = unregister;
 
     return { trackView: tv, trackId, unregister };
 }
@@ -137,13 +143,28 @@ initMap().then(async (m) => {
         return colour;
     };
 
+    // Callback to fit map bounds to all active tracks and update total selected distance
+    const fitAllActiveTracks = () => {
+        const bounds = new google.maps.LatLngBounds();
+        let totalDistance = 0.0;
+        activeTrackViews.forEach((value, key) => {
+            bounds.union(value.trackView.bounds);
+            totalDistance += value.trackView.distance;
+        });
+        if (!bounds.isEmpty()) {
+            const mapDiv = map.getDiv();
+            const padding = Math.floor(Math.min(mapDiv.clientWidth, mapDiv.clientHeight) * 0.1);
+            map.fitBounds(bounds, padding);
+        }
+        menu.setSelectedDistance(totalDistance);
+    };
+
     // Helpers to activate/deactivate a track view and keep menu swatch in sync
     const activateTrack = async (trackId, explicitColour, centerMap, dashboard=null) => {
         if (!trackId || activeTrackViews.has(trackId)) return;
         const colour = explicitColour || getTrackColour(trackId);
-        await createTrackView(trackId, colour, centerMap, dashboard);
+        await createTrackView(trackId, colour, centerMap, dashboard, fitAllActiveTracks);
         menu.setTrackSwatch(trackId, colour);
-        menu.addSelectedDistance(trackManager.getTrackDistance(trackId));
         if (dashboard && typeof dashboard.hide === 'function') {
             // Register a listener for live track updates to hide the dashboard when deactivated
             trackManager.registerLiveTrackListener((liveTrackId) => {
@@ -161,15 +182,18 @@ initMap().then(async (m) => {
         entry.trackView.destroy();
         activeTrackViews.delete(trackId);
         menu.removeTrackSwatch(trackId);
-        menu.subtractSelectedDistance(trackManager.getTrackDistance(trackId));
+        fitAllActiveTracks();
     };
     // Create the map menu UI and populate with tracks
     const menu = new MapMenu(
         map,
         async (trackId, checked) => {
             try {
-                if (checked) await activateTrack(trackId, null, activeTrackViews.size === 0);
-                else deactivateTrack(trackId);
+                if (checked) {
+                    await activateTrack(trackId, null, activeTrackViews.size === 0);
+                } else {
+                    deactivateTrack(trackId);
+                }
             } catch (err) {
                 console.error('Error handling menu change:', err);
             }

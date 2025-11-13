@@ -105,20 +105,6 @@ export default class TrackManager {
     }
 
     /**
-     * Get the distance of a specific track
-     * @param {string} trackId
-     * @returns {number|null} Distance in meters, or null if not found
-     */
-    getTrackDistance(trackId) {
-        if (!trackId || typeof trackId !== 'string' || trackId.length < 4) return null;
-        // Track IDs are in the format YYYYMMDD-HHmm; derive section/year from first 4 chars
-        const year = trackId.slice(0,4);
-        const list = this.getTracks(year);
-        const track = list.find(t => t.id === trackId);
-        return track ? (track.Distance || null) : null;
-    }
-
-    /**
      * Register a listener for changes to the tracks index.
      * Listeners will be invoked once per section with the signature: (sectionId, tracksArray).
      * The TrackManager groups the full tracks index into sections (by year derived from track id)

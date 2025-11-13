@@ -257,7 +257,6 @@ export default class MapMenu {
         if (colour) {
             input.checked = true;
             try { this.setTrackSwatch(track.id, colour); } catch (e) { /* ignore */ }
-            this.addSelectedDistance(track.Distance);
         }
     }
 
@@ -334,68 +333,23 @@ export default class MapMenu {
     }
 
     /**
-     * Update the displayed selected distance value.
+     * Sets the content for the selected distance footer value.
      * If passed a number, it will be treated as meters and formatted via UnitManager.
      * Otherwise the value is coerced to string and displayed as-is.
      * @param {number|string|null} value
      */
-    addSelectedDistance(value) {
+    setSelectedDistance(value) {
         if (!this.selectedDistanceValue) return;
         if (value === null || value === undefined || value === '') {
+            this.selectedDistanceValue.textContent = '';
             return;
         }
         if (typeof value === 'number' && isFinite(value)) {
             // Assume meters input
             const converted = UnitManager.convertValue('Distance', value);
-            const currentText = this.selectedDistanceValue.textContent;
-            let currentMeters = 0;
-            if (currentText) {
-                const parts = currentText.split(' ');
-                if (parts.length >= 2) {
-                    const currentValue = parseFloat(parts[0]);
-                    const currentUnit = parts[1];
-                    switch (currentUnit) {
-                        case 'nm':
-                            currentMeters = currentValue / 0.000539957;
-                            break;
-                        default:
-                            currentMeters = 0; // unsupported unit
-                    }
-                }
-            }
-            currentMeters += value;
-            const newConverted = UnitManager.convertValue('Distance', currentMeters);
-            this.selectedDistanceValue.textContent = `${newConverted.value} ${newConverted.unit}`;
+            this.selectedDistanceValue.textContent = `${converted.value} ${converted.unit}`;
         } else {
             this.selectedDistanceValue.textContent = `${value}`;
-        }
-    }
-
-    subtractSelectedDistance(value) {
-        if (!this.selectedDistanceValue) return;
-        if (value === null || value === undefined || value === '') {
-            return;
-        }
-        // Get current distance in meters
-        const currentText = this.selectedDistanceValue.textContent;
-        if (!currentText) return;
-        const parts = currentText.split(' ');
-        if (parts.length < 2) return;
-        const currentValue = parseFloat(parts[0]);
-        const currentUnit = parts[1];
-        let currentMeters = null;
-        switch (currentUnit) {
-            case 'nm':
-                currentMeters = currentValue / 0.000539957;
-                break;
-            default:
-                return; // unsupported unit
-        }
-        if (typeof value === 'number' && isFinite(value)) {
-            currentMeters -= value;
-            if (currentMeters < 0) currentMeters = 0;
-            const converted = UnitManager.convertValue('Distance', currentMeters);
-            this.selectedDistanceValue.textContent = `${converted.value} ${converted.unit}`;
         }
     }
 

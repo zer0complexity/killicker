@@ -26,13 +26,16 @@ export default class TrackView {
         return TrackView.arrowSvgCache.replace(/FILL_COLOR/g, colour);
     }
 
-    constructor(map, trackColour, centerMap, dashboard=null) {
+    constructor(map, trackColour, centerMap, dashboard=null, onBoundsChange=null) {
         this.map = map;
         this.trackColour = trackColour;
         this.trackPoints = [];
         this.infoWindow = new google.maps.InfoWindow();
         this.markers = [];
         this.dashboard = dashboard;
+        this.bounds = new google.maps.LatLngBounds();
+        this.distance = 0;
+        this.onBoundsChange = onBoundsChange;
         // If a NavDashboard instance was provided, ensure it's visible so TrackView
         // can update tiles immediately. The dashboard instance is expected to have
         // been initialized by the caller (main.js).
@@ -56,15 +59,6 @@ export default class TrackView {
             strokeWeight: 6,
         });
         this.track.setMap(this.map);
-    }
-
-    addPointToTrack(position) {
-        this.trackPoints.push(position);
-        this.track.setPath(this.trackPoints);
-        if (this.trackPoints.length === 1 && this.centerMap) {
-            // Only center map on first point if requested
-            this.map.setCenter(position);
-        }
     }
 
     placeMarker(pointData, svg) {
@@ -153,7 +147,10 @@ export default class TrackView {
 
         // Treat incoming points as a delta to append
         points.forEach(element => {
-            this.addPointToTrack(element.position);
+            this.bounds.extend(element.position);
+            this.trackPoints.push(element.position);
+            this.track.setPath(this.trackPoints);
+            this.distance = element.Distance;
             // If the point doesn't have SOG, skip placing a marker
             if (element.SOG !== undefined) {
                 this.markers.push(this.placeMarker(element, arrowSvg));
@@ -169,6 +166,12 @@ export default class TrackView {
             }
             this.prevPointData = element;
         });
+
+        this.updateMarkers();
+
+        if (this.onBoundsChange && typeof this.onBoundsChange === 'function') {
+            this.onBoundsChange();
+        }
     }
 
     updateMarkers() {
