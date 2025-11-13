@@ -269,7 +269,24 @@
     .nav-toggle { display: none; }
 }
 
-@media (orientation: landscape) and (max-height: 430px) {
+/* Portrait mode: ensure dashboard and toggle never overlap by using smaller sizing */
+@media (orientation: portrait) and (min-width: 431px) {
+    :root {
+        --dash-h: 12vh;
+        --nd-gap: 3px;
+    }
+
+    #dashboard-container {
+        bottom: 0;
+        right: calc(var(--nav-toggle-hit));
+    }
+
+    .nav-toggle {
+        bottom: 0;
+        height: var(--dash-h);
+        min-width: var(--nav-toggle-hit);
+    }
+}@media (orientation: landscape) and (max-height: 430px) {
     :root { --nd-gap: 2px; }
 
     .stat-tile .stat-title {
