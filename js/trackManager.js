@@ -86,8 +86,6 @@ export default class TrackManager {
         };
     }
 
-    // (ref-count release removed; cache cleanup now handled by unregister in registerListener)
-
     /**
      * Get metadata for a section's tracks
      * @param {string} sectionId - section id (e.g., year like "2025"). If omitted, returns empty array.
@@ -291,7 +289,7 @@ export default class TrackManager {
                         this.logger.info(`Live track cleared`);
                     }
                     this.liveTrackId = liveTrackId;
-                        this._safeNotify(this.liveTrackListeners, 'live track', this.liveTrackId);
+                    this._safeNotify(this.liveTrackListeners, 'live track', this.liveTrackId);
                 }
                 if (liveTrackId) {
                     const liveCount = updateData.live.pointCount || 0;
