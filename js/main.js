@@ -155,6 +155,7 @@ initMap().then(async (m) => {
             const mapDiv = map.getDiv();
             const padding = Math.floor(Math.min(mapDiv.clientWidth, mapDiv.clientHeight) * 0.1);
             map.fitBounds(bounds, padding);
+            map.setZoom(Math.min(map.getZoom(), 15)); // limit max zoom when fitting
         }
         menu.setSelectedDistance(totalDistance);
     };
